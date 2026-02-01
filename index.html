@@ -164,6 +164,14 @@
     </style>
 </head>
 <body class="bg-[#FAFAFF] dark:bg-gray-950 transition-colors duration-300">
+    <!-- Auto-save status indicator - Fixed Top Left -->
+    <div id="autoSaveIndicator" class="fixed top-4 left-4 z-50 px-4 py-2 bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+        </svg>
+        <span>Auto-save attivo</span>
+    </div>
+    
     <!-- Theme Toggle and Export Buttons -->
     <div class="fixed top-4 right-4 z-50 flex gap-2">
         <button id="exportBtn" class="px-6 py-2 bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all text-gray-700 dark:text-gray-300 rounded-full font-medium flex items-center gap-2 text-sm">
@@ -183,17 +191,9 @@
     </div>
 
     <div class="mx-35 py-8" style="margin-left: 140px; margin-right: 140px;">
-        <!-- Header with Auto-save indicator -->
-        <div class="mb-8 relative">
-            <!-- Auto-save indicator - Absolute Left -->
-            <div id="autoSaveIndicator" class="absolute left-0 top-1/2 -translate-y-1/2 px-4 py-2 text-sm text-gray-500 dark:text-gray-400 rounded-lg flex items-center gap-2">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                </svg>
-                <span>Auto-save attivo</span>
-            </div>
-            
-            <!-- Title - Absolutely Centered -->
+        <!-- Header with Title -->
+        <div class="mb-8">
+            <!-- Title - Centered -->
             <div class="text-center">
                 <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-2 editable-page-title cursor-pointer inline-block" contenteditable="true" data-field="pageTitle">
                     Moduli per SIS
@@ -215,10 +215,10 @@
                         <div class="text-xs text-gray-600 dark:text-gray-400 flex-1" contenteditable="true">Moduli critici inclusi nel rilascio MVP per essere competitivi sul mercato</div>
                     </div>
                 </div>
-                <div class="flex items-stretch gap-0 bg-white dark:bg-gray-900 rounded-lg border border-amber-200 dark:border-amber-800 overflow-hidden">
-                    <div class="flex-shrink-0 flex flex-col items-center justify-start gap-2 p-4 bg-amber-100 dark:bg-amber-900/30">
-                        <span class="editable-priority-label cursor-pointer inline-block px-3 py-1 text-xs font-bold rounded bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400" contenteditable="true" data-priority="Importante">Post</span>
-                        <div class="text-3xl font-bold text-amber-600 dark:text-amber-400" id="importantCount">0</div>
+                <div class="flex items-stretch gap-0 bg-white dark:bg-gray-900 rounded-lg border border-yellow-200 dark:border-yellow-800 overflow-hidden">
+                    <div class="flex-shrink-0 flex flex-col items-center justify-start gap-2 p-4 bg-yellow-100 dark:bg-yellow-900/30">
+                        <span class="editable-priority-label cursor-pointer inline-block px-3 py-1 text-xs font-bold rounded bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400" contenteditable="true" data-priority="Importante">Post</span>
+                        <div class="text-3xl font-bold text-yellow-600 dark:text-yellow-400" id="importantCount">0</div>
                     </div>
                     <div class="flex-1 min-w-0 p-4 flex flex-col">
                         <div class="font-semibold text-sm text-gray-900 dark:text-white editable-priority-name cursor-pointer mb-1" contenteditable="true" data-priority="Importante">v1.0 o Q3-Q4 2025</div>
@@ -237,8 +237,6 @@
                 </div>
             </div>
         </div>
-
-        <div id="statusMessage" class="mb-6 text-sm text-center text-gray-600 dark:text-gray-400 hidden"></div>
 
         <!-- Categories will be dynamically generated here -->
         <div id="categories-container"></div>
@@ -460,7 +458,7 @@
             return `
                 <div class="priority-selector flex gap-2">
                     <button class="priority-badge px-4 py-2 text-sm font-semibold rounded bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 opacity-30 hover:opacity-100" data-priority="Essenziale">${priorityLabels['Essenziale']}</button>
-                    <button class="priority-badge px-4 py-2 text-sm font-semibold rounded bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 opacity-30 hover:opacity-100" data-priority="Importante">${priorityLabels['Importante']}</button>
+                    <button class="priority-badge px-4 py-2 text-sm font-semibold rounded bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400 opacity-30 hover:opacity-100" data-priority="Importante">${priorityLabels['Importante']}</button>
                     <button class="priority-badge px-4 py-2 text-sm font-semibold rounded bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 opacity-30 hover:opacity-100" data-priority="Nice-to-have">${priorityLabels['Nice-to-have']}</button>
                 </div>
             `;
@@ -708,15 +706,15 @@
             
             // Remove all priority border classes
             card.classList.remove(
-                'border-gray-300', 'border-green-300', 'border-amber-300', 'border-blue-300',
-                'dark:border-gray-700', 'dark:border-green-700', 'dark:border-amber-700', 'dark:border-blue-700'
+                'border-gray-300', 'border-green-300', 'border-yellow-300', 'border-blue-300',
+                'dark:border-gray-700', 'dark:border-green-700', 'dark:border-yellow-700', 'dark:border-blue-700'
             );
             
             // Add border based on priority
             if (priority === 'Essenziale') {
                 card.classList.add('border-green-300', 'dark:border-green-700');
             } else if (priority === 'Importante') {
-                card.classList.add('border-amber-300', 'dark:border-amber-700');
+                card.classList.add('border-yellow-300', 'dark:border-yellow-700');
             } else if (priority === 'Nice-to-have') {
                 card.classList.add('border-blue-300', 'dark:border-blue-700');
             } else {
@@ -1060,7 +1058,6 @@
             } catch (error) {
                 console.error('❌ ERRORE nel salvataggio:', error);
                 updateAutoSaveIndicator('error');
-                showMessage('Errore di connessione a Google Sheets', 'error');
             }
             
             isSaving = false;
@@ -1085,32 +1082,42 @@
                 idle: {
                     icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>',
                     text: 'Auto-save attivo',
-                    color: 'text-gray-500 dark:text-gray-400'
+                    color: 'text-gray-500 dark:text-gray-400',
+                    bg: 'bg-white dark:bg-gray-800',
+                    border: 'border-gray-200 dark:border-gray-700'
                 },
                 pending: {
                     icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>',
                     text: 'Modifiche in attesa...',
-                    color: 'text-amber-600 dark:text-amber-400'
+                    color: 'text-amber-600 dark:text-amber-400',
+                    bg: 'bg-amber-50 dark:bg-amber-900/20',
+                    border: 'border-amber-300 dark:border-amber-700'
                 },
                 saving: {
                     icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>',
                     text: 'Salvataggio...',
-                    color: 'text-blue-600 dark:text-blue-400 animate-pulse'
+                    color: 'text-blue-600 dark:text-blue-400 animate-pulse',
+                    bg: 'bg-blue-50 dark:bg-blue-900/20',
+                    border: 'border-blue-300 dark:border-blue-700'
                 },
                 saved: {
                     icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>',
                     text: 'Salvato ✓',
-                    color: 'text-green-600 dark:text-green-400'
+                    color: 'text-green-600 dark:text-green-400',
+                    bg: 'bg-green-50 dark:bg-green-900/20',
+                    border: 'border-green-300 dark:border-green-700'
                 },
                 error: {
                     icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>',
                     text: 'Errore salvataggio',
-                    color: 'text-red-600 dark:text-red-400'
+                    color: 'text-red-600 dark:text-red-400',
+                    bg: 'bg-red-50 dark:bg-red-900/20',
+                    border: 'border-red-300 dark:border-red-700'
                 }
             };
             
             const config = statusConfig[status];
-            indicator.className = `flex-1 px-4 py-3 text-sm rounded-lg flex items-center justify-center gap-2 ${config.color}`;
+            indicator.className = `fixed top-4 left-4 z-50 px-4 py-2 shadow-lg rounded-lg text-sm flex items-center gap-2 ${config.bg} ${config.border} ${config.color} border`;
             indicator.innerHTML = `
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     ${config.icon}
@@ -1280,7 +1287,6 @@
                 });
                 
                 initializeDragAndDrop(); // Re-initialize drag and drop for loaded cards
-                showMessage('Dati caricati da Google Sheets! ✓', 'success');
                 console.log('=== FINE CARICAMENTO ===');
                 
             } catch (error) {
@@ -1323,27 +1329,6 @@
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            
-            showMessage('CSV esportato con successo! ✓', 'success');
-        }
-
-        // Show message
-        function showMessage(message, type) {
-            const statusEl = document.getElementById('statusMessage');
-            statusEl.textContent = message;
-            statusEl.classList.remove('hidden', 'text-green-600', 'text-blue-600', 'text-gray-600');
-            
-            if (type === 'success') {
-                statusEl.classList.add('text-green-600', 'dark:text-green-400');
-            } else if (type === 'info') {
-                statusEl.classList.add('text-blue-600', 'dark:text-blue-400');
-            } else {
-                statusEl.classList.add('text-gray-600', 'dark:text-gray-400');
-            }
-            
-            setTimeout(() => {
-                statusEl.classList.add('hidden');
-            }, 3000);
         }
     </script>
 </body>
