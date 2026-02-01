@@ -6,6 +6,12 @@
     <title>SIS - Categorizzazione e Prioritizzazione Moduli</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
+        // Google Sheets Configuration
+        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzd6hWMwP46N2-mG85BFRklMU0DZI9ilxjEeoKFVLMj6AV4chRjGVTUxiuuLG0iArnRtg/exec';
+        
+        let autoSaveTimeout = null;
+        let isSaving = false;
+        
         tailwind.config = {
             darkMode: 'class',
             theme: {
@@ -209,18 +215,18 @@
 
             <!-- Actions -->
             <div class="flex gap-3 items-start">
-                <button id="saveBtn" class="flex-1 px-4 py-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg font-medium transition-colors flex items-center justify-center gap-2">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path>
-                    </svg>
-                    Salva
-                </button>
                 <button id="exportBtn" class="flex-1 px-4 py-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg font-medium transition-colors flex items-center justify-center gap-2">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                     </svg>
                     Esporta CSV
                 </button>
+                <div id="autoSaveIndicator" class="flex-1 px-4 py-3 text-sm text-gray-500 dark:text-gray-400 rounded-lg flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    <span>Auto-save attivo</span>
+                </div>
             </div>
         </div>
         <div id="statusMessage" class="mb-6 text-sm text-center text-gray-600 dark:text-gray-400 hidden"></div>
@@ -637,21 +643,31 @@
         });
 
         // Button event listeners
-        document.getElementById('saveBtn').addEventListener('click', saveState);
+        // Export to CSV functionality
         document.getElementById('exportBtn').addEventListener('click', exportToCSV);
+        
+        // Auto-save triggers - save after any change
+        document.addEventListener('input', function(e) {
+            if (e.target.hasAttribute('contenteditable')) {
+                triggerAutoSave();
+            }
+        });
+        
+        // Trigger auto-save after priority changes, module add/delete
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.priority-badge') || 
+                e.target.closest('.delete-module-btn') || 
+                e.target.closest('.add-module-btn')) {
+                // Small delay to ensure DOM is updated
+                setTimeout(triggerAutoSave, 100);
+            }
+        });
 
-        // Try to auto-load saved state on page load
+        // Try to auto-load from Google Sheets on page load
         window.addEventListener('load', () => {
             console.log('=== PAGINA CARICATA ===');
-            const saved = localStorage.getItem('sis_complete_state');
-            console.log('Stato salvato trovato?', saved ? 'SÌ' : 'NO');
-            if (saved) {
-                console.log('Lunghezza dati:', saved.length);
-                console.log('Primi 200 caratteri:', saved.substring(0, 200));
-                loadState();
-            } else {
-                console.log('Nessuno stato salvato, mostro dati originali');
-            }
+            console.log('Tentativo di caricamento da Google Sheets...');
+            loadState();
         });
 
         // Update Statistics
@@ -669,9 +685,14 @@
             document.getElementById('niceToHaveCount').textContent = niceToHaveModules.length;
         }
 
-        // Save complete state to localStorage
-        function saveState() {
-            console.log('=== INIZIO SALVATAGGIO ===');
+        // Save complete state to Google Sheets (auto-save)
+        async function saveState() {
+            if (isSaving) return; // Prevent multiple simultaneous saves
+            
+            console.log('=== INIZIO SALVATAGGIO SU GOOGLE SHEETS ===');
+            isSaving = true;
+            updateAutoSaveIndicator('saving');
+            
             const completeState = {
                 categories: [],
                 timestamp: new Date().toISOString()
@@ -715,32 +736,107 @@
             console.log('Stato completo:', completeState);
             
             try {
-                localStorage.setItem('sis_complete_state', JSON.stringify(completeState));
-                console.log('Salvato in localStorage!');
-                console.log('Verifica salvataggio:', localStorage.getItem('sis_complete_state') ? 'TROVATO' : 'NON TROVATO');
-            } catch (e) {
-                console.error('ERRORE nel salvataggio:', e);
+                const jsonData = JSON.stringify(completeState);
+                const formData = new URLSearchParams();
+                formData.append('data', jsonData);
+                
+                const response = await fetch(GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                console.log('Risposta Google Sheets:', result);
+                
+                if (result.success) {
+                    console.log('✅ Salvato su Google Sheets!');
+                    updateAutoSaveIndicator('saved');
+                    setTimeout(() => updateAutoSaveIndicator('idle'), 2000);
+                } else {
+                    console.error('❌ Errore:', result.message);
+                    updateAutoSaveIndicator('error');
+                    showMessage('Errore nel salvataggio: ' + result.message, 'error');
+                }
+                
+            } catch (error) {
+                console.error('❌ ERRORE nel salvataggio:', error);
+                updateAutoSaveIndicator('error');
+                showMessage('Errore di connessione a Google Sheets', 'error');
             }
             
-            showMessage('Stato salvato con successo! ✓', 'success');
+            isSaving = false;
             console.log('=== FINE SALVATAGGIO ===');
         }
+        
+        // Trigger auto-save after changes (debounced)
+        function triggerAutoSave() {
+            clearTimeout(autoSaveTimeout);
+            updateAutoSaveIndicator('pending');
+            autoSaveTimeout = setTimeout(() => {
+                saveState();
+            }, 2000); // Save 2 seconds after last change
+        }
+        
+        // Update auto-save indicator
+        function updateAutoSaveIndicator(status) {
+            const indicator = document.getElementById('autoSaveIndicator');
+            if (!indicator) return;
+            
+            const statusConfig = {
+                idle: {
+                    icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>',
+                    text: 'Auto-save attivo',
+                    color: 'text-gray-500 dark:text-gray-400'
+                },
+                pending: {
+                    icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>',
+                    text: 'Modifiche in attesa...',
+                    color: 'text-amber-600 dark:text-amber-400'
+                },
+                saving: {
+                    icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>',
+                    text: 'Salvataggio...',
+                    color: 'text-blue-600 dark:text-blue-400 animate-pulse'
+                },
+                saved: {
+                    icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>',
+                    text: 'Salvato ✓',
+                    color: 'text-green-600 dark:text-green-400'
+                },
+                error: {
+                    icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>',
+                    text: 'Errore salvataggio',
+                    color: 'text-red-600 dark:text-red-400'
+                }
+            };
+            
+            const config = statusConfig[status];
+            indicator.className = `flex-1 px-4 py-3 text-sm rounded-lg flex items-center justify-center gap-2 ${config.color}`;
+            indicator.innerHTML = `
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    ${config.icon}
+                </svg>
+                <span>${config.text}</span>
+            `;
+        }
 
-        // Load complete state from localStorage
-        function loadState() {
-            console.log('=== INIZIO CARICAMENTO ===');
-            const savedState = localStorage.getItem('sis_complete_state');
-            
-            if (!savedState) {
-                console.log('Nessuno stato salvato');
-                showMessage('Nessuno stato salvato trovato', 'info');
-                return;
-            }
-            
-            console.log('Stato trovato, lunghezza:', savedState.length);
+        // Load complete state from Google Sheets
+        async function loadState() {
+            console.log('=== INIZIO CARICAMENTO DA GOOGLE SHEETS ===');
             
             try {
-                const state = JSON.parse(savedState);
+                const response = await fetch(GOOGLE_SCRIPT_URL);
+                const result = await response.json();
+                
+                console.log('Risposta Google Sheets:', result);
+                
+                if (!result.success) {
+                    console.log('Nessun dato salvato, uso dati originali');
+                    showMessage('Nessun dato salvato trovato, mostro dati originali', 'info');
+                    return;
+                }
+                
+                const state = JSON.parse(result.data);
                 console.log('Stato parsato:', state);
                 console.log('Numero categorie da caricare:', state.categories.length);
                 
@@ -845,13 +941,13 @@
                 
                 updateStats();
                 sortAllCategories();
-                showMessage('Stato caricato con successo! ✓', 'success');
+                showMessage('Dati caricati da Google Sheets! ✓', 'success');
                 console.log('=== FINE CARICAMENTO ===');
                 
             } catch (error) {
-                console.error('ERRORE nel caricamento:', error);
+                console.error('ERRORE nel caricamento da Google Sheets:', error);
                 console.error('Stack trace:', error.stack);
-                showMessage('Errore nel caricamento dello stato', 'error');
+                showMessage('Errore nel caricamento, mostro dati originali', 'info');
             }
         }
 
