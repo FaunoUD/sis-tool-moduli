@@ -163,7 +163,7 @@
         }
     </style>
 </head>
-<body class="bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
+<body class="bg-[#FAFAFF] dark:bg-gray-950 transition-colors duration-300">
     <!-- Theme Toggle and Export Buttons -->
     <div class="fixed top-4 right-4 z-50 flex gap-2">
         <button id="exportBtn" class="px-6 py-2 bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all text-gray-700 dark:text-gray-300 rounded-full font-medium flex items-center gap-2 text-sm">
@@ -548,7 +548,7 @@
             if (targetGrid && draggedCard.parentNode !== targetGrid) {
                 // Create a new card with the same data
                 const newCard = document.createElement('div');
-                newCard.className = 'module-card bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-5 relative';
+                newCard.className = 'module-card bg-white dark:bg-gray-900 rounded-lg shadow-md border border-gray-300 dark:border-gray-700 p-5 relative';
                 newCard.setAttribute('draggable', 'true');
                 newCard.style.cursor = 'grab';
                 if (cardData.priority) {
@@ -583,6 +583,9 @@
                 
                 // Add the card to the new category
                 targetGrid.appendChild(newCard);
+                
+                // Update border based on priority
+                updateCardBorder(newCard);
                 
                 // Remove the old card
                 draggedCard.remove();
@@ -625,7 +628,7 @@
                     </div>
                     <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 modules-grid">
                         ${category.modules.map(module => `
-                            <div class="module-card bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-5 relative">
+                            <div class="module-card bg-white dark:bg-gray-900 rounded-lg shadow-md border border-gray-300 dark:border-gray-700 p-5 relative">
                                 <div class="flex justify-between items-start mb-4">
                                     <h3 class="font-semibold text-gray-900 dark:text-white text-base editable-module-title flex-1 mr-3" contenteditable="true">${module.title}</h3>
                                     ${createPrioritySelector()}
@@ -681,9 +684,37 @@
                 sortModulesByPriority(category);
             });
         }
+        
+        // Update card border and shadow based on priority
+        function updateCardBorder(card) {
+            const priority = card.dataset.priority;
+            
+            // Remove all priority border classes
+            card.classList.remove(
+                'border-gray-300', 'border-green-300', 'border-amber-300', 'border-blue-300',
+                'dark:border-gray-700', 'dark:border-green-700', 'dark:border-amber-700', 'dark:border-blue-700'
+            );
+            
+            // Add border based on priority
+            if (priority === 'Essenziale') {
+                card.classList.add('border-green-300', 'dark:border-green-700');
+            } else if (priority === 'Importante') {
+                card.classList.add('border-amber-300', 'dark:border-amber-700');
+            } else if (priority === 'Nice-to-have') {
+                card.classList.add('border-blue-300', 'dark:border-blue-700');
+            } else {
+                // No priority - default gray
+                card.classList.add('border-gray-300', 'dark:border-gray-700');
+            }
+        }
 
         // Initialize
         renderCategories();
+        
+        // Update all card borders based on priority
+        document.querySelectorAll('.module-card').forEach(card => {
+            updateCardBorder(card);
+        });
         
         // Initialize drag and drop for all module cards
         initializeDragAndDrop();
@@ -744,6 +775,9 @@
                     moduleCard.dataset.priority = e.target.dataset.priority;
                 }
                 
+                // Update card border based on priority
+                updateCardBorder(moduleCard);
+                
                 updateStats();
                 
                 // Sort the category after priority change
@@ -762,7 +796,7 @@
                 
                 // Create new module card
                 const newCard = document.createElement('div');
-                newCard.className = 'module-card bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-5 relative';
+                newCard.className = 'module-card bg-white dark:bg-gray-900 rounded-lg shadow-md border border-gray-300 dark:border-gray-700 p-5 relative';
                 newCard.innerHTML = `
                     <div class="flex justify-between items-start mb-4">
                         <h3 class="font-semibold text-gray-900 dark:text-white text-base editable-module-title flex-1 mr-3" contenteditable="true">Nuovo Modulo</h3>
@@ -1076,7 +1110,7 @@
                     // Add all saved modules
                     savedCategory.modules.forEach(module => {
                         const moduleCard = document.createElement('div');
-                        moduleCard.className = 'module-card bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-5 relative';
+                        moduleCard.className = 'module-card bg-white dark:bg-gray-900 rounded-lg shadow-md border border-gray-300 dark:border-gray-700 p-5 relative';
                         if (module.priority) {
                             moduleCard.dataset.priority = module.priority;
                         }
@@ -1130,6 +1164,12 @@
                 
                 updateStats();
                 sortAllCategories();
+                
+                // Update all card borders based on priority
+                document.querySelectorAll('.module-card').forEach(card => {
+                    updateCardBorder(card);
+                });
+                
                 initializeDragAndDrop(); // Re-initialize drag and drop for loaded cards
                 showMessage('Dati caricati da Google Sheets! ✓', 'success');
                 console.log('=== FINE CARICAMENTO ===');
