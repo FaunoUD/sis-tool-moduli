@@ -1526,6 +1526,14 @@
                 
                 console.log('Categorie ricostruite');
                 
+                // Force DOM reflow
+                container.style.display = 'none';
+                container.offsetHeight; // Force reflow
+                container.style.display = 'block';
+                
+                console.log('Container display forzato');
+                console.log('Numero elementi nel container:', container.children.length);
+                
                 // Restore timeline content
                 if (state.timeline && state.timeline.length > 0) {
                     const timelineElements = document.querySelectorAll('[contenteditable="true"]');
@@ -1546,6 +1554,8 @@
                 document.querySelectorAll('.module-card').forEach(card => {
                     updateCardBorder(card);
                 });
+                
+                console.log('Numero totale moduli dopo caricamento:', document.querySelectorAll('.module-card').length);
                 
                 initializeDragAndDrop(); // Re-initialize drag and drop for loaded cards
                 initializeCategoryDragAndDrop(); // Re-initialize category drag and drop
