@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sitemap Creator - Visual Sitemap Builder</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { barlow: ['Barlow', 'sans-serif'] },
+                    colors: {
+                        brand: { 50:'#eef2ff',100:'#e0e7ff',200:'#c7d2fe',300:'#a5b4fc',400:'#818cf8',500:'#6366f1',600:'#4f46e5',700:'#4338ca',800:'#3730a3',900:'#312e81' }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        * { font-family: 'Barlow', sans-serif; }
+        body { background: linear-gradient(135deg, #f0f4ff 0%, #e8eeff 25%, #f5f0ff 50%, #f0f4ff 75%, #e8f0ff 100%); min-height: 100vh; }
+        body.dark { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 25%, #0f172a 50%, #1e1b4b 75%, #0f172a 100%); }
+
+        .glass { background: rgba(255,255,255,0.45); backdrop-filter: blur(40px) saturate(180%); -webkit-backdrop-filter: blur(40px) saturate(180%); border: 1px solid rgba(255,255,255,0.5); box-shadow: 0 8px 32px rgba(31,38,135,0.08); }
+        .dark .glass { background: rgba(17,24,39,0.45); border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+
+        .glass-card { background: rgba(255,255,255,0.55); backdrop-filter: blur(20px) saturate(160%); -webkit-backdrop-filter: blur(20px) saturate(160%); border: 1px solid rgba(255,255,255,0.6); box-shadow: 0 4px 16px rgba(31,38,135,0.06); transition: all 0.2s ease; }
+        .dark .glass-card { background: rgba(31,41,55,0.55); border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 4px 16px rgba(0,0,0,0.2); }
+        .glass-card:hover { box-shadow: 0 8px 24px rgba(31,38,135,0.12); transform: translateY(-1px); }
+        .dark .glass-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+
+        .glass-input { background: rgba(255,255,255,0.5); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.6); }
+        .dark .glass-input { background: rgba(31,41,55,0.5); border: 1px solid rgba(255,255,255,0.1); }
+
+        .tree-line { position: relative; }
+        .tree-line::before { content: ''; position: absolute; left: -20px; top: 0; bottom: 0; width: 1px; background: rgba(99,102,241,0.25); }
+        .tree-line::after { content: ''; position: absolute; left: -20px; top: 18px; width: 20px; height: 1px; background: rgba(99,102,241,0.25); }
+        .dark .tree-line::before { background: rgba(129,140,248,0.2); }
+        .dark .tree-line::after { background: rgba(129,140,248,0.2); }
+
+        .drag-over { outline: 2px dashed #6366f1; outline-offset: 2px; background: rgba(99,102,241,0.08) !important; }
+        .dragging { opacity: 0.4; transform: scale(0.95); }
+
+        .fade-in { animation: fadeIn 0.25s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+        .collapse-transition { transition: max-height 0.3s ease, opacity 0.2s ease; overflow: hidden; }
+
+        .page-type-badge { font-size: 0.65rem; padding: 1px 6px; border-radius: 9999px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+
+        .modal-overlay { background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); }
+
+        .tooltip { position: relative; }
+        .tooltip::after { content: attr(data-tip); position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%) translateY(4px); padding: 4px 8px; background: #1e293b; color: white; font-size: 0.7rem; border-radius: 6px; white-space: nowrap; opacity: 0; pointer-events: none; transition: all 0.15s ease; }
+        .tooltip:hover::after { opacity: 1; transform: translateX(-50%) translateY(-4px); }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.2); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(99,102,241,0.4); }
+
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white !important; }
+            .glass, .glass-card { background: white !important; backdrop-filter: none !important; border: 1px solid #e5e7eb !important; box-shadow: none !important; }
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useCallback, useRef, useMemo } = React;
+
+        // ============ UTILS ============
+        const generateId = () => Math.random().toString(36).substr(2, 9);
+
+        const PAGE_TYPES = {
+            page: { label: 'Pagina', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300', icon: '📄' },
+            section: { label: 'Sezione', color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300', icon: '📁' },
+            form: { label: 'Form', color: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300', icon: '📝' },
+            modal: { label: 'Modale', color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300', icon: '🪟' },
+            external: { label: 'Esterno', color: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300', icon: '🔗' },
+            api: { label: 'API', color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300', icon: '⚡' },
+            auth: { label: 'Auth', color: 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300', icon: '🔒' },
+            utility: { label: 'Utility', color: 'bg-gray-100 text-gray-700 dark:bg-gray-800/60 dark:text-gray-300', icon: '⚙️' },
+        };
+
+        const STATUS_COLORS = {
+            draft: 'bg-gray-300 dark:bg-gray-600',
+            inProgress: 'bg-yellow-400 dark:bg-yellow-500',
+            review: 'bg-blue-400 dark:bg-blue-500',
+            done: 'bg-green-400 dark:bg-green-500',
+        };
+        const STATUS_LABELS = { draft: 'Bozza', inProgress: 'In Corso', review: 'In Revisione', done: 'Completato' };
+
+        // Helper for concise node creation
+        const n = (name, path, type, notes, children) => ({
+            id: generateId(), name, path, type: type || 'page', status: 'draft', notes: notes || '', collapsed: false, children: children || []
+        });
+
+        const DEFAULT_SITEMAP = {
+            id: generateId(),
+            name: 'SIS — Admin',
+            description: 'Sitemap della piattaforma Student Information System — Vista Admin',
+            pages: [
+                n('Home', '/', 'section', 'Area principale dell\'admin', [
+                    n('Dashboard operativa', '/dashboard', 'page', 'Alert, scadenze'),
+                    n('Notifiche / To-do', '/notifications', 'page', ''),
+                    n('Ricerca globale', '/search', 'page', 'Studenti, docenti, classi'),
+                    n('Calendario', '/calendar', 'page', 'Eventi, chiusure, extra period'),
+                ]),
+
+                n('Persone', '/persone', 'section', '', [
+                    n('Studenti', '/persone/studenti', 'section', '', [
+                        n('Lista / filtri', '/persone/studenti/lista', 'page', ''),
+                        n('Scheda studente', '/persone/studenti/:id', 'page', '', [
+                            n('Anagrafica', '/persone/studenti/:id/anagrafica', 'page', ''),
+                            n('Documenti', '/persone/studenti/:id/documenti', 'page', ''),
+                            n('Dati medici & Learning Support', '/persone/studenti/:id/medico', 'page', ''),
+                            n('Referenti / Guardian + consensi', '/persone/studenti/:id/guardian', 'page', ''),
+                            n('Presenze (storico)', '/persone/studenti/:id/presenze', 'page', ''),
+                            n('Valutazioni / pagelle', '/persone/studenti/:id/valutazioni', 'page', ''),
+                            n('Pagamenti / rette', '/persone/studenti/:id/pagamenti', 'page', ''),
+                        ]),
+                    ]),
+                    n('Genitori', '/persone/genitori', 'section', '', [
+                        n('Lista', '/persone/genitori/lista', 'page', ''),
+                        n('Profilo + studenti collegati', '/persone/genitori/:id', 'page', ''),
+                    ]),
+                    n('Personale', '/persone/personale', 'section', '', [
+                        n('Docenti (lista + profilo)', '/persone/personale/docenti', 'page', ''),
+                        n('Staff (lista + profilo)', '/persone/personale/staff', 'page', ''),
+                    ]),
+                ]),
+
+                n('Classi & Orario', '/classi', 'section', '', [
+                    n('Struttura scolastica', '/classi/struttura', 'section', '', [
+                        n('Dipartimenti', '/classi/struttura/dipartimenti', 'page', ''),
+                        n('Gradi', '/classi/struttura/gradi', 'page', ''),
+                        n('Homeroom / Classi', '/classi/struttura/homeroom', 'page', ''),
+                    ]),
+                    n('Calendario scolastico', '/classi/calendario', 'page', 'Vista operativa con filtri'),
+                    n('Timetabling / Orari', '/classi/orari', 'section', '', [
+                        n('Vista orario', '/classi/orari/vista', 'page', 'Classe / docente / aula'),
+                        n('Modifiche / aggiustamenti', '/classi/orari/edit', 'page', 'Manual edit'),
+                    ]),
+                    n('Assegnazioni', '/classi/assegnazioni', 'section', '', [
+                        n('Assegnazione studenti → classe', '/classi/assegnazioni/studenti', 'page', ''),
+                        n('Associazione docenti → classe', '/classi/assegnazioni/docenti', 'page', ''),
+                    ]),
+                ]),
+
+                n('Didattica', '/didattica', 'section', '', [
+                    n('Presenze studenti', '/didattica/presenze', 'section', '', [
+                        n('Registro giornaliero', '/didattica/presenze/registro', 'page', ''),
+                        n('Ritardi / uscite anticipate', '/didattica/presenze/ritardi', 'page', ''),
+                        n('Report servizi', '/didattica/presenze/servizi', 'page', 'Mensa / bus / doposcuola'),
+                    ]),
+                    n('Assenze & sostituzioni docenti', '/didattica/sostituzioni', 'section', '', [
+                        n('Presenze docenti del giorno', '/didattica/sostituzioni/presenze', 'page', ''),
+                        n('Inserimento assenza', '/didattica/sostituzioni/assenza', 'form', ''),
+                        n('Docenti disponibili', '/didattica/sostituzioni/disponibili', 'page', ''),
+                        n('Assegnazione copertura + report ore', '/didattica/sostituzioni/copertura', 'page', ''),
+                    ]),
+                    n('Valutazioni & scrutini', '/didattica/valutazioni', 'section', '', [
+                        n('Gestione valutazioni', '/didattica/valutazioni/gestione', 'page', 'Periodi + scale'),
+                        n('Vista voti per classe', '/didattica/valutazioni/voti', 'page', ''),
+                        n('Gestione scrutinio', '/didattica/valutazioni/scrutinio', 'page', 'Pianificazione + chiusura'),
+                        n('Generazione pagelle (PDF)', '/didattica/valutazioni/pagelle', 'page', ''),
+                        n('Invio pagelle alle famiglie', '/didattica/valutazioni/invio', 'page', ''),
+                    ]),
+                ]),
+
+                n('Ammissioni & Iscrizioni', '/ammissioni', 'section', '', [
+                    n('Config Google Forms', '/ammissioni/forms', 'utility', ''),
+                    n('Pipeline candidature', '/ammissioni/pipeline', 'page', ''),
+                    n('Dettaglio candidatura + stato', '/ammissioni/:id', 'page', ''),
+                    n('Firma digitale contratto', '/ammissioni/firma', 'form', ''),
+                    n('Iscrizione → creazione profilo studente', '/ammissioni/iscrizione', 'page', ''),
+                ]),
+
+                n('Pagamenti', '/pagamenti', 'section', '', [
+                    n('Rette per studente', '/pagamenti/rette', 'page', 'Lista + stato + insoluti'),
+                    n('Pagamenti extra', '/pagamenti/extra', 'page', 'Gite, felpe, ecc.'),
+                    n('Export Excel per Arca', '/pagamenti/export', 'utility', ''),
+                ]),
+
+                n('Comunicazioni', '/comunicazioni', 'section', '', [
+                    n('Invio comunicazione', '/comunicazioni/invio', 'form', 'A gruppi selezionati'),
+                    n('Archivio', '/comunicazioni/archivio', 'page', ''),
+                    n('Report lettura, errori invio & GDPR', '/comunicazioni/report', 'page', ''),
+                ]),
+
+                n('Report', '/report', 'section', '', [
+                    n('Report studenti', '/report/studenti', 'page', ''),
+                    n('Report docenti', '/report/docenti', 'page', ''),
+                    n('Report presenze', '/report/presenze', 'page', ''),
+                    n('Report servizi', '/report/servizi', 'page', ''),
+                    n('Export report personalizzati', '/report/export', 'utility', ''),
+                ]),
+
+                n('Impostazioni & Privacy', '/impostazioni', 'section', '', [
+                    n('Setup (Wizard iniziale)', '/impostazioni/setup', 'section', 'Sequenziale e gated', [
+                        n('Step 1 — Struttura Base', '/impostazioni/setup/step-1', 'section', '', [
+                            n('School Identity', '/impostazioni/setup/step-1/identity', 'page', ''),
+                            n('Academic Year', '/impostazioni/setup/step-1/anno', 'section', '', [
+                                n('Term(s)', '/impostazioni/setup/step-1/anno/terms', 'page', ''),
+                                n('Closing(s)', '/impostazioni/setup/step-1/anno/closings', 'page', ''),
+                                n('Extra Period(s)', '/impostazioni/setup/step-1/anno/extra', 'page', ''),
+                            ]),
+                            n('Departments', '/impostazioni/setup/step-1/departments', 'page', 'Name + homeroom_role + scheduling_mode'),
+                            n('Grades', '/impostazioni/setup/step-1/grades', 'page', ''),
+                        ]),
+                        n('Step 2 — Import Base', '/impostazioni/setup/step-2', 'section', '', [
+                            n('Import Studenti', '/impostazioni/setup/step-2/studenti', 'utility', ''),
+                            n('Import Docenti', '/impostazioni/setup/step-2/docenti', 'utility', ''),
+                            n('Import Staff', '/impostazioni/setup/step-2/staff', 'utility', ''),
+                        ]),
+                        n('Step 3 — Configurazione Accademica', '/impostazioni/setup/step-3', 'section', '', [
+                            n('Day Templates', '/impostazioni/setup/step-3/day-templates', 'page', ''),
+                            n('Lunch Shift', '/impostazioni/setup/step-3/lunch', 'page', ''),
+                            n('Rooms', '/impostazioni/setup/step-3/rooms', 'page', ''),
+                            n('Evaluation Periods', '/impostazioni/setup/step-3/eval-periods', 'page', ''),
+                            n('Evaluation Scales', '/impostazioni/setup/step-3/eval-scales', 'page', ''),
+                            n('Curriculum', '/impostazioni/setup/step-3/curriculum', 'page', ''),
+                            n('Subjects', '/impostazioni/setup/step-3/subjects', 'page', ''),
+                            n('Homeroom', '/impostazioni/setup/step-3/homeroom', 'page', ''),
+                            n('Assegnazione Docenti', '/impostazioni/setup/step-3/assegnazione', 'page', ''),
+                            n('Generazione Timetable', '/impostazioni/setup/step-3/timetable', 'page', ''),
+                        ]),
+                        n('Step 4 — Sistema', '/impostazioni/setup/step-4', 'section', '', [
+                            n('Permessi iniziali', '/impostazioni/setup/step-4/permessi', 'auth', ''),
+                            n('Servizi aggiuntivi', '/impostazioni/setup/step-4/servizi', 'page', 'Bus, sicurezza, ecc.'),
+                        ]),
+                    ]),
+                    n('Gestione Scuola', '/impostazioni/gestione', 'section', 'Configurazione permanente', [
+                        n('Identità Scuola', '/impostazioni/gestione/identita', 'section', '', [
+                            n('Modifica School Identity', '/impostazioni/gestione/identita/edit', 'form', ''),
+                        ]),
+                        n('Anni Accademici', '/impostazioni/gestione/anni', 'section', '', [
+                            n('Lista Anni', '/impostazioni/gestione/anni/lista', 'page', '', [
+                                n('Modifica', '/impostazioni/gestione/anni/:id/edit', 'form', ''),
+                                n('Cambia stato', '/impostazioni/gestione/anni/:id/stato', 'page', 'Draft / Active / Archived'),
+                                n('Archivia', '/impostazioni/gestione/anni/:id/archivia', 'page', ''),
+                                n('Duplica', '/impostazioni/gestione/anni/:id/duplica', 'page', ''),
+                            ]),
+                            n('Crea Nuovo Anno', '/impostazioni/gestione/anni/nuovo', 'section', '', [
+                                n('Definizione Anno', '/impostazioni/gestione/anni/nuovo/definizione', 'page', ''),
+                                n('Term(s)', '/impostazioni/gestione/anni/nuovo/terms', 'page', ''),
+                                n('Closing Period(s)', '/impostazioni/gestione/anni/nuovo/closings', 'page', ''),
+                                n('Extra Period(s)', '/impostazioni/gestione/anni/nuovo/extra', 'page', ''),
+                                n('Departments', '/impostazioni/gestione/anni/nuovo/departments', 'page', ''),
+                                n('Grades', '/impostazioni/gestione/anni/nuovo/grades', 'page', ''),
+                                n('Day Templates', '/impostazioni/gestione/anni/nuovo/day-templates', 'page', ''),
+                                n('Lunch Shift', '/impostazioni/gestione/anni/nuovo/lunch', 'page', ''),
+                                n('Rooms', '/impostazioni/gestione/anni/nuovo/rooms', 'page', ''),
+                                n('Evaluation Periods', '/impostazioni/gestione/anni/nuovo/eval-periods', 'page', ''),
+                                n('Evaluation Scales', '/impostazioni/gestione/anni/nuovo/eval-scales', 'page', ''),
+                                n('Curriculum', '/impostazioni/gestione/anni/nuovo/curriculum', 'page', ''),
+                                n('Subjects', '/impostazioni/gestione/anni/nuovo/subjects', 'page', ''),
+                                n('Homeroom', '/impostazioni/gestione/anni/nuovo/homeroom', 'page', ''),
+                                n('Assegnazione Docenti', '/impostazioni/gestione/anni/nuovo/assegnazione', 'page', ''),
+                                n('Generazione Timetable', '/impostazioni/gestione/anni/nuovo/timetable', 'page', ''),
+                            ]),
+                        ]),
+                        n('Servizi Scuola', '/impostazioni/gestione/servizi', 'section', '', [
+                            n('Bus', '/impostazioni/gestione/servizi/bus', 'page', ''),
+                            n('Sicurezza', '/impostazioni/gestione/servizi/sicurezza', 'page', ''),
+                            n('Altri servizi', '/impostazioni/gestione/servizi/altri', 'page', ''),
+                        ]),
+                    ]),
+                    n('Ruoli & permessi (RBAC)', '/impostazioni/rbac', 'auth', ''),
+                    n('GDPR & consensi', '/impostazioni/gdpr', 'auth', ''),
+                    n('Audit trail & log accessi', '/impostazioni/audit', 'page', ''),
+                    n('Import / Export utenti', '/impostazioni/import-export', 'utility', ''),
+                ]),
+            ]
+        };
+
+        // ============ DEEP TREE HELPERS ============
+        function findNode(pages, id) {
+            for (const p of pages) {
+                if (p.id === id) return p;
+                if (p.children) { const found = findNode(p.children, id); if (found) return found; }
+            }
+            return null;
+        }
+
+        function findParent(pages, id) {
+            for (const p of pages) {
+                if (p.children) {
+                    if (p.children.some(c => c.id === id)) return p;
+                    const found = findParent(p.children, id);
+                    if (found) return found;
+                }
+            }
+            return null;
+        }
+
+        function removeNode(pages, id) {
+            return pages.filter(p => p.id !== id).map(p => ({ ...p, children: p.children ? removeNode(p.children, id) : [] }));
+        }
+
+        function insertNode(pages, parentId, node, index = -1) {
+            return pages.map(p => {
+                if (p.id === parentId) {
+                    const children = [...(p.children || [])];
+                    if (index >= 0) children.splice(index, 0, node);
+                    else children.push(node);
+                    return { ...p, children };
+                }
+                return { ...p, children: p.children ? insertNode(p.children, parentId, node, index) : [] };
+            });
+        }
+
+        function updateNode(pages, id, updates) {
+            return pages.map(p => {
+                if (p.id === id) return { ...p, ...updates };
+                return { ...p, children: p.children ? updateNode(p.children, id, updates) : [] };
+            });
+        }
+
+        function countPages(pages) {
+            let count = 0;
+            for (const p of pages) { count++; if (p.children) count += countPages(p.children); }
+            return count;
+        }
+
+        function getDepth(pages, depth = 0) {
+            let max = depth;
+            for (const p of pages) {
+                if (p.children && p.children.length > 0) max = Math.max(max, getDepth(p.children, depth + 1));
+            }
+            return max;
+        }
+
+        function flattenPages(pages, depth = 0) {
+            let result = [];
+            for (const p of pages) {
+                result.push({ ...p, depth });
+                if (p.children) result = result.concat(flattenPages(p.children, depth + 1));
+            }
+            return result;
+        }
+
+        function deepClone(obj) { return JSON.parse(JSON.stringify(obj)); }
+
+        // ============ STORAGE ============
+        const STORAGE_KEY = 'sitemap_creator_data';
+
+        function loadState() {
+            try {
+                const hash = window.location.hash.slice(1);
+                if (hash) {
+                    try {
+                        const decoded = JSON.parse(decodeURIComponent(atob(hash)));
+                        if (decoded && decoded.pages) return decoded;
+                    } catch(e) {}
+                }
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) { const parsed = JSON.parse(saved); if (parsed && parsed.pages) return parsed; }
+            } catch(e) {}
+            return DEFAULT_SITEMAP;
+        }
+
+        function saveState(state) {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+                const encoded = btoa(encodeURIComponent(JSON.stringify(state)));
+                if (encoded.length < 8000) {
+                    window.history.replaceState(null, '', '#' + encoded);
+                }
+            } catch(e) {}
+        }
+
+        // ============ ICONS (SVG) ============
+        const Icons = {
+            Plus: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg>,
+            Trash: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>,
+            Edit: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>,
+            ChevronDown: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/></svg>,
+            ChevronRight: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg>,
+            Moon: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>,
+            Sun: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>,
+            Download: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>,
+            Upload: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>,
+            Copy: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>,
+            Search: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>,
+            Grip: () => <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 24 24"><circle cx="9" cy="5" r="1.5"/><circle cx="15" cy="5" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="19" r="1.5"/><circle cx="15" cy="19" r="1.5"/></svg>,
+            ExpandAll: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg>,
+            CollapseAll: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 9V4.5M9 9H4.5M9 9L3.5 3.5M9 15v4.5M9 15H4.5M9 15l-5.5 5.5M15 9h4.5M15 9V4.5M15 9l5.5-5.5M15 15h4.5M15 15v4.5m0-4.5l5.5 5.5"/></svg>,
+            Undo: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a5 5 0 015 5v2M3 10l4-4m-4 4l4 4"/></svg>,
+            Redo: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 10H11a5 5 0 00-5 5v2m15-7l-4-4m4 4l-4 4"/></svg>,
+            Share: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>,
+            Print: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>,
+            Duplicate: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"/></svg>,
+            MoveUp: () => <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7"/></svg>,
+            MoveDown: () => <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/></svg>,
+            LevelUp: () => <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>,
+            LevelDown: () => <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>,
+        };
+
+        // ============ MODAL COMPONENT ============
+        function Modal({ isOpen, onClose, title, children, wide }) {
+            if (!isOpen) return null;
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay" onClick={onClose}>
+                    <div className={`glass rounded-2xl p-6 w-full ${wide ? 'max-w-2xl' : 'max-w-md'} fade-in max-h-[90vh] overflow-y-auto`} onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-semibold text-gray-800 dark:text-white">{title}</h3>
+                            <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors">&times;</button>
+                        </div>
+                        {children}
+                    </div>
+                </div>
+            );
+        }
+
+        // ============ TOAST ============
+        function Toast({ message, visible }) {
+            if (!visible) return null;
+            return (
+                <div className="fixed bottom-6 right-6 z-50 glass rounded-xl px-4 py-2.5 text-sm font-medium text-gray-800 dark:text-white fade-in shadow-lg">
+                    {message}
+                </div>
+            );
+        }
+
+        // ============ PAGE NODE COMPONENT ============
+        function PageNode({ page, depth, sitemap, setSitemap, onEdit, dragState, setDragState, searchTerm, history }) {
+            const nodeRef = useRef(null);
+            const hasChildren = page.children && page.children.length > 0;
+            const typeInfo = PAGE_TYPES[page.type] || PAGE_TYPES.page;
+            const isMatch = searchTerm && page.name.toLowerCase().includes(searchTerm.toLowerCase());
+            const isSearching = searchTerm && searchTerm.length > 0;
+
+            const toggleCollapse = () => {
+                history.push(sitemap);
+                setSitemap(prev => ({ ...prev, pages: updateNode(prev.pages, page.id, { collapsed: !page.collapsed }) }));
+            };
+
+            const handleDragStart = (e) => {
+                e.stopPropagation();
+                setDragState({ draggingId: page.id, overId: null, position: null });
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', page.id);
+                setTimeout(() => { if (nodeRef.current) nodeRef.current.classList.add('dragging'); }, 0);
+            };
+
+            const handleDragEnd = () => {
+                if (nodeRef.current) nodeRef.current.classList.remove('dragging');
+                setDragState({ draggingId: null, overId: null, position: null });
+            };
+
+            const handleDragOver = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (dragState.draggingId === page.id) return;
+                const rect = nodeRef.current.getBoundingClientRect();
+                const y = e.clientY - rect.top;
+                const third = rect.height / 3;
+                let position = 'inside';
+                if (y < third) position = 'before';
+                else if (y > third * 2) position = 'after';
+                setDragState(prev => ({ ...prev, overId: page.id, position }));
+            };
+
+            const handleDragLeave = (e) => {
+                e.stopPropagation();
+                if (dragState.overId === page.id) {
+                    setDragState(prev => ({ ...prev, overId: null, position: null }));
+                }
+            };
+
+            const handleDrop = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const dragId = dragState.draggingId;
+                if (!dragId || dragId === page.id) return;
+
+                history.push(sitemap);
+                setSitemap(prev => {
+                    let pages = deepClone(prev.pages);
+                    const dragNode = findNode(pages, dragId);
+                    if (!dragNode) return prev;
+                    const dragNodeCopy = deepClone(dragNode);
+                    pages = removeNode(pages, dragId);
+
+                    if (dragState.position === 'inside') {
+                        const target = findNode(pages, page.id);
+                        if (target) {
+                            if (!target.children) target.children = [];
+                            target.children.push(dragNodeCopy);
+                        }
+                    } else {
+                        const parent = findParent(pages, page.id);
+                        const siblings = parent ? parent.children : pages;
+                        const idx = siblings.findIndex(p => p.id === page.id);
+                        const insertIdx = dragState.position === 'before' ? idx : idx + 1;
+                        siblings.splice(insertIdx, 0, dragNodeCopy);
+                    }
+                    return { ...prev, pages };
+                });
+                setDragState({ draggingId: null, overId: null, position: null });
+            };
+
+            const addChild = () => {
+                history.push(sitemap);
+                const newPage = { id: generateId(), name: 'Nuova Pagina', path: '/', type: 'page', status: 'draft', notes: '', collapsed: false, children: [] };
+                setSitemap(prev => ({
+                    ...prev,
+                    pages: updateNode(prev.pages, page.id, { children: [...(page.children || []), newPage], collapsed: false })
+                }));
+            };
+
+            const deletePage = () => {
+                history.push(sitemap);
+                setSitemap(prev => ({ ...prev, pages: removeNode(prev.pages, page.id) }));
+            };
+
+            const duplicatePage = () => {
+                history.push(sitemap);
+                const dup = deepClone(page);
+                const reassignIds = (node) => { node.id = generateId(); (node.children || []).forEach(reassignIds); };
+                reassignIds(dup);
+                dup.name = page.name + ' (copia)';
+                const parent = findParent(sitemap.pages, page.id);
+                if (parent) {
+                    setSitemap(prev => ({ ...prev, pages: insertNode(prev.pages, parent.id, dup) }));
+                } else {
+                    setSitemap(prev => ({ ...prev, pages: [...prev.pages, dup] }));
+                }
+            };
+
+            const moveUp = () => {
+                history.push(sitemap);
+                setSitemap(prev => {
+                    const pages = deepClone(prev.pages);
+                    const parent = findParent(pages, page.id);
+                    const siblings = parent ? parent.children : pages;
+                    const idx = siblings.findIndex(p => p.id === page.id);
+                    if (idx > 0) { [siblings[idx - 1], siblings[idx]] = [siblings[idx], siblings[idx - 1]]; }
+                    return { ...prev, pages };
+                });
+            };
+
+            const moveDown = () => {
+                history.push(sitemap);
+                setSitemap(prev => {
+                    const pages = deepClone(prev.pages);
+                    const parent = findParent(pages, page.id);
+                    const siblings = parent ? parent.children : pages;
+                    const idx = siblings.findIndex(p => p.id === page.id);
+                    if (idx < siblings.length - 1) { [siblings[idx], siblings[idx + 1]] = [siblings[idx + 1], siblings[idx]]; }
+                    return { ...prev, pages };
+                });
+            };
+
+            const promoteLevel = () => {
+                history.push(sitemap);
+                setSitemap(prev => {
+                    const pages = deepClone(prev.pages);
+                    const parent = findParent(pages, page.id);
+                    if (!parent) return prev;
+                    const grandParent = findParent(pages, parent.id);
+                    const node = deepClone(findNode(pages, page.id));
+                    const parentInTree = findNode(pages, parent.id);
+                    parentInTree.children = parentInTree.children.filter(c => c.id !== page.id);
+                    if (grandParent) {
+                        const idx = grandParent.children.findIndex(c => c.id === parent.id);
+                        grandParent.children.splice(idx + 1, 0, node);
+                    } else {
+                        const idx = pages.findIndex(c => c.id === parent.id);
+                        pages.splice(idx + 1, 0, node);
+                    }
+                    return { ...prev, pages };
+                });
+            };
+
+            const demoteLevel = () => {
+                history.push(sitemap);
+                setSitemap(prev => {
+                    const pages = deepClone(prev.pages);
+                    const parent = findParent(pages, page.id);
+                    const siblings = parent ? parent.children : pages;
+                    const idx = siblings.findIndex(p => p.id === page.id);
+                    if (idx <= 0) return prev;
+                    const prevSibling = siblings[idx - 1];
+                    const node = deepClone(findNode(pages, page.id));
+                    siblings.splice(idx, 1);
+                    if (!prevSibling.children) prevSibling.children = [];
+                    prevSibling.children.push(node);
+                    return { ...prev, pages };
+                });
+            };
+
+            const isOver = dragState.overId === page.id;
+            const dropIndicator = isOver ? (
+                dragState.position === 'before' ? 'border-t-2 border-brand-500' :
+                dragState.position === 'after' ? 'border-b-2 border-brand-500' :
+                'ring-2 ring-brand-500 ring-inset'
+            ) : '';
+
+            if (isSearching && !isMatch && (!hasChildren || !page.children.some(c => {
+                const check = (n) => n.name.toLowerCase().includes(searchTerm.toLowerCase()) || (n.children || []).some(check);
+                return check(c);
+            }))) return null;
+
+            return (
+                <div className={`${depth > 0 ? 'ml-8 tree-line' : ''} fade-in`}>
+                    <div
+                        ref={nodeRef}
+                        draggable
+                        onDragStart={handleDragStart}
+                        onDragEnd={handleDragEnd}
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleDrop}
+                        className={`glass-card rounded-xl p-3 mb-2 group cursor-grab active:cursor-grabbing ${dropIndicator} ${isMatch ? 'ring-2 ring-yellow-400' : ''}`}
+                    >
+                        <div className="flex items-center gap-2">
+                            <div className="flex-shrink-0 cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                                <Icons.Grip />
+                            </div>
+
+                            {hasChildren ? (
+                                <button onClick={toggleCollapse} className="flex-shrink-0 p-0.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-gray-500 dark:text-gray-400">
+                                    {page.collapsed ? <Icons.ChevronRight /> : <Icons.ChevronDown />}
+                                </button>
+                            ) : <div className="w-5" />}
+
+                            <span className="text-lg flex-shrink-0">{typeInfo.icon}</span>
+
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-semibold text-gray-800 dark:text-white text-sm truncate">{page.name}</span>
+                                    <span className={`page-type-badge ${typeInfo.color}`}>{typeInfo.label}</span>
+                                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS_COLORS[page.status]}`} title={STATUS_LABELS[page.status]} />
+                                </div>
+                                <span className="text-xs text-gray-500 dark:text-gray-400 font-mono">{page.path}</span>
+                            </div>
+
+                            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 no-print">
+                                <button onClick={moveUp} className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors tooltip" data-tip="Sposta su"><Icons.MoveUp /></button>
+                                <button onClick={moveDown} className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors tooltip" data-tip="Sposta giù"><Icons.MoveDown /></button>
+                                <button onClick={promoteLevel} className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors tooltip" data-tip="Livello su"><Icons.LevelUp /></button>
+                                <button onClick={demoteLevel} className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors tooltip" data-tip="Livello giù"><Icons.LevelDown /></button>
+                                <div className="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-0.5" />
+                                <button onClick={addChild} className="p-1 rounded hover:bg-green-100 dark:hover:bg-green-900/30 text-gray-400 hover:text-green-600 dark:hover:text-green-400 transition-colors tooltip" data-tip="Aggiungi figlio"><Icons.Plus /></button>
+                                <button onClick={duplicatePage} className="p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors tooltip" data-tip="Duplica"><Icons.Duplicate /></button>
+                                <button onClick={() => onEdit(page)} className="p-1 rounded hover:bg-brand-100 dark:hover:bg-brand-900/30 text-gray-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors tooltip" data-tip="Modifica"><Icons.Edit /></button>
+                                <button onClick={deletePage} className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-gray-400 hover:text-red-500 transition-colors tooltip" data-tip="Elimina"><Icons.Trash /></button>
+                            </div>
+                        </div>
+                        {page.notes && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5 ml-12 italic line-clamp-1">{page.notes}</p>
+                        )}
+                    </div>
+
+                    {hasChildren && !page.collapsed && (
+                        <div className="collapse-transition">
+                            {page.children.map(child => (
+                                <PageNode
+                                    key={child.id}
+                                    page={child}
+                                    depth={depth + 1}
+                                    sitemap={sitemap}
+                                    setSitemap={setSitemap}
+                                    onEdit={onEdit}
+                                    dragState={dragState}
+                                    setDragState={setDragState}
+                                    searchTerm={searchTerm}
+                                    history={history}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        // ============ EDIT PAGE MODAL ============
+        function EditPageModal({ page, isOpen, onClose, onSave }) {
+            const [form, setForm] = useState({ name: '', path: '', type: 'page', status: 'draft', notes: '' });
+
+            useEffect(() => {
+                if (page) setForm({ name: page.name, path: page.path, type: page.type, status: page.status, notes: page.notes || '' });
+            }, [page]);
+
+            const handleSave = () => { onSave(page.id, form); onClose(); };
+
+            return (
+                <Modal isOpen={isOpen} onClose={onClose} title="Modifica Pagina">
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome</label>
+                            <input value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))} className="w-full glass-input rounded-xl px-3 py-2 text-sm text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Percorso URL</label>
+                            <input value={form.path} onChange={e => setForm(f => ({...f, path: e.target.value}))} className="w-full glass-input rounded-xl px-3 py-2 text-sm font-mono text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500" />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipo</label>
+                                <select value={form.type} onChange={e => setForm(f => ({...f, type: e.target.value}))} className="w-full glass-input rounded-xl px-3 py-2 text-sm text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500">
+                                    {Object.entries(PAGE_TYPES).map(([key, val]) => (
+                                        <option key={key} value={key}>{val.icon} {val.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Stato</label>
+                                <select value={form.status} onChange={e => setForm(f => ({...f, status: e.target.value}))} className="w-full glass-input rounded-xl px-3 py-2 text-sm text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500">
+                                    {Object.entries(STATUS_LABELS).map(([key, val]) => (
+                                        <option key={key} value={key}>{val}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Note</label>
+                            <textarea value={form.notes} onChange={e => setForm(f => ({...f, notes: e.target.value}))} rows={3} className="w-full glass-input rounded-xl px-3 py-2 text-sm text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none" />
+                        </div>
+                        <div className="flex justify-end gap-2 pt-2">
+                            <button onClick={onClose} className="px-4 py-2 text-sm rounded-xl text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">Annulla</button>
+                            <button onClick={handleSave} className="px-4 py-2 text-sm rounded-xl bg-brand-600 text-white hover:bg-brand-700 transition-colors font-medium">Salva</button>
+                        </div>
+                    </div>
+                </Modal>
+            );
+        }
+
+        // ============ UNDO HISTORY ============
+        function useHistory(maxSize = 50) {
+            const undoStack = useRef([]);
+            const redoStack = useRef([]);
+            return useMemo(() => ({
+                push: (state) => {
+                    undoStack.current.push(deepClone(state));
+                    if (undoStack.current.length > maxSize) undoStack.current.shift();
+                    redoStack.current = [];
+                },
+                undo: (current, setCurrent) => {
+                    if (undoStack.current.length === 0) return;
+                    redoStack.current.push(deepClone(current));
+                    setCurrent(undoStack.current.pop());
+                },
+                redo: (current, setCurrent) => {
+                    if (redoStack.current.length === 0) return;
+                    undoStack.current.push(deepClone(current));
+                    setCurrent(redoStack.current.pop());
+                },
+                canUndo: () => undoStack.current.length > 0,
+                canRedo: () => redoStack.current.length > 0,
+            }), []);
+        }
+
+        // ============ MAIN APP ============
+        function App() {
+            const [sitemap, setSitemap] = useState(() => loadState());
+            const [dark, setDark] = useState(() => localStorage.getItem('sitemap_dark') === 'true');
+            const [editingPage, setEditingPage] = useState(null);
+            const [searchTerm, setSearchTerm] = useState('');
+            const [dragState, setDragState] = useState({ draggingId: null, overId: null, position: null });
+            const [toast, setToast] = useState({ message: '', visible: false });
+            const [settingsOpen, setSettingsOpen] = useState(false);
+            const fileInputRef = useRef(null);
+            const history = useHistory();
+
+            useEffect(() => { saveState(sitemap); }, [sitemap]);
+            useEffect(() => {
+                document.documentElement.classList.toggle('dark', dark);
+                document.body.classList.toggle('dark', dark);
+                localStorage.setItem('sitemap_dark', dark);
+            }, [dark]);
+
+            useEffect(() => {
+                const handler = (e) => {
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); history.undo(sitemap, setSitemap); }
+                    if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); history.redo(sitemap, setSitemap); }
+                };
+                window.addEventListener('keydown', handler);
+                return () => window.removeEventListener('keydown', handler);
+            }, [sitemap]);
+
+            const showToast = (msg) => { setToast({ message: msg, visible: true }); setTimeout(() => setToast(t => ({ ...t, visible: false })), 2500); };
+
+            const addRootPage = () => {
+                history.push(sitemap);
+                const newPage = { id: generateId(), name: 'Nuova Pagina', path: '/', type: 'page', status: 'draft', notes: '', collapsed: false, children: [] };
+                setSitemap(prev => ({ ...prev, pages: [...prev.pages, newPage] }));
+            };
+
+            const handleEditSave = (id, updates) => {
+                history.push(sitemap);
+                setSitemap(prev => ({ ...prev, pages: updateNode(prev.pages, id, updates) }));
+            };
+
+            const expandAll = () => {
+                const setCollapsed = (pages, val) => pages.map(p => ({ ...p, collapsed: val, children: p.children ? setCollapsed(p.children, val) : [] }));
+                history.push(sitemap);
+                setSitemap(prev => ({ ...prev, pages: setCollapsed(prev.pages, false) }));
+            };
+
+            const collapseAll = () => {
+                const setCollapsed = (pages, val) => pages.map(p => ({ ...p, collapsed: val, children: p.children ? setCollapsed(p.children, val) : [] }));
+                history.push(sitemap);
+                setSitemap(prev => ({ ...prev, pages: setCollapsed(prev.pages, true) }));
+            };
+
+            const exportJSON = () => {
+                const blob = new Blob([JSON.stringify(sitemap, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = `sitemap-${sitemap.name.replace(/\s+/g, '-').toLowerCase()}.json`;
+                a.click(); URL.revokeObjectURL(url);
+                showToast('Sitemap esportata!');
+            };
+
+            const importJSON = (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    try {
+                        const data = JSON.parse(ev.target.result);
+                        if (data && data.pages) {
+                            history.push(sitemap);
+                            setSitemap(data);
+                            showToast('Sitemap importata!');
+                        }
+                    } catch(err) { showToast('Errore nel file JSON'); }
+                };
+                reader.readAsText(file);
+                e.target.value = '';
+            };
+
+            const shareLink = () => {
+                const encoded = btoa(encodeURIComponent(JSON.stringify(sitemap)));
+                const url = window.location.origin + window.location.pathname + '#' + encoded;
+                navigator.clipboard.writeText(url).then(() => showToast('Link copiato negli appunti!')).catch(() => showToast('Errore nella copia'));
+            };
+
+            const resetSitemap = () => {
+                if (confirm('Sei sicuro di voler resettare la sitemap? Questa azione non può essere annullata.')) {
+                    history.push(sitemap);
+                    setSitemap(DEFAULT_SITEMAP);
+                    showToast('Sitemap resettata');
+                }
+            };
+
+            const totalPages = countPages(sitemap.pages);
+            const maxDepth = getDepth(sitemap.pages);
+            const typeStats = {};
+            flattenPages(sitemap.pages).forEach(p => { typeStats[p.type] = (typeStats[p.type] || 0) + 1; });
+
+            return (
+                <div className="min-h-screen p-4 md:p-6 lg:p-8 max-w-5xl mx-auto">
+                    {/* Header */}
+                    <header className="glass rounded-2xl p-5 mb-6 no-print">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-purple-600 flex items-center justify-center text-white text-xl shadow-lg">🗺️</div>
+                                    <div>
+                                        <h1 className="text-xl font-bold text-gray-800 dark:text-white">Sitemap Creator</h1>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">Visual sitemap builder interattivo</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <button onClick={() => history.undo(sitemap, setSitemap)} className="p-2 rounded-xl glass-card text-gray-600 dark:text-gray-300 hover:text-brand-600 transition-colors tooltip disabled:opacity-30" data-tip="Annulla (Ctrl+Z)" disabled={!history.canUndo()}><Icons.Undo /></button>
+                                <button onClick={() => history.redo(sitemap, setSitemap)} className="p-2 rounded-xl glass-card text-gray-600 dark:text-gray-300 hover:text-brand-600 transition-colors tooltip disabled:opacity-30" data-tip="Ripristina (Ctrl+Y)" disabled={!history.canRedo()}><Icons.Redo /></button>
+                                <div className="w-px h-6 bg-gray-300 dark:bg-gray-600" />
+                                <button onClick={() => setDark(!dark)} className="p-2 rounded-xl glass-card text-gray-600 dark:text-gray-300 hover:text-brand-600 transition-colors tooltip" data-tip={dark ? 'Tema chiaro' : 'Tema scuro'}>
+                                    {dark ? <Icons.Sun /> : <Icons.Moon />}
+                                </button>
+                                <button onClick={() => setSettingsOpen(true)} className="p-2 rounded-xl glass-card text-gray-600 dark:text-gray-300 hover:text-brand-600 transition-colors tooltip" data-tip="Impostazioni">
+                                    <Icons.Edit />
+                                </button>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* Project Info */}
+                    <div className="glass rounded-2xl p-5 mb-6">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
+                            <div>
+                                <h2 className="text-lg font-bold text-gray-800 dark:text-white">{sitemap.name}</h2>
+                                {sitemap.description && <p className="text-sm text-gray-500 dark:text-gray-400">{sitemap.description}</p>}
+                            </div>
+                            <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400 flex-wrap">
+                                <span className="glass-card px-2.5 py-1 rounded-lg font-medium">{totalPages} pagine</span>
+                                <span className="glass-card px-2.5 py-1 rounded-lg font-medium">{maxDepth + 1} livelli</span>
+                                {Object.entries(typeStats).map(([type, count]) => (
+                                    <span key={type} className={`px-2.5 py-1 rounded-lg font-medium ${PAGE_TYPES[type]?.color || ''}`}>
+                                        {PAGE_TYPES[type]?.icon} {count}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Toolbar */}
+                        <div className="flex flex-wrap items-center gap-2 no-print">
+                            <div className="relative flex-1 min-w-[200px] max-w-sm">
+                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><Icons.Search /></div>
+                                <input
+                                    value={searchTerm}
+                                    onChange={e => setSearchTerm(e.target.value)}
+                                    placeholder="Cerca pagine..."
+                                    className="w-full glass-input rounded-xl pl-9 pr-3 py-2 text-sm text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500 placeholder-gray-400"
+                                />
+                            </div>
+                            <button onClick={expandAll} className="p-2 rounded-xl glass-card text-gray-600 dark:text-gray-300 hover:text-brand-600 transition-colors tooltip" data-tip="Espandi tutto"><Icons.ExpandAll /></button>
+                            <button onClick={collapseAll} className="p-2 rounded-xl glass-card text-gray-600 dark:text-gray-300 hover:text-brand-600 transition-colors tooltip" data-tip="Comprimi tutto"><Icons.CollapseAll /></button>
+                            <div className="w-px h-6 bg-gray-300 dark:bg-gray-600" />
+                            <button onClick={addRootPage} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-brand-600 text-white hover:bg-brand-700 transition-colors text-sm font-medium shadow-sm">
+                                <Icons.Plus /> <span className="hidden sm:inline">Aggiungi</span>
+                            </button>
+                            <button onClick={shareLink} className="p-2 rounded-xl glass-card text-gray-600 dark:text-gray-300 hover:text-brand-600 transition-colors tooltip" data-tip="Copia link"><Icons.Share /></button>
+                            <button onClick={exportJSON} className="p-2 rounded-xl glass-card text-gray-600 dark:text-gray-300 hover:text-brand-600 transition-colors tooltip" data-tip="Esporta JSON"><Icons.Download /></button>
+                            <button onClick={() => fileInputRef.current?.click()} className="p-2 rounded-xl glass-card text-gray-600 dark:text-gray-300 hover:text-brand-600 transition-colors tooltip" data-tip="Importa JSON"><Icons.Upload /></button>
+                            <button onClick={() => window.print()} className="p-2 rounded-xl glass-card text-gray-600 dark:text-gray-300 hover:text-brand-600 transition-colors tooltip" data-tip="Stampa"><Icons.Print /></button>
+                            <input ref={fileInputRef} type="file" accept=".json" onChange={importJSON} className="hidden" />
+                        </div>
+                    </div>
+
+                    {/* Legend */}
+                    <div className="glass rounded-2xl p-4 mb-6">
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
+                            <span className="font-semibold text-gray-600 dark:text-gray-300">Legenda:</span>
+                            {Object.entries(PAGE_TYPES).map(([key, val]) => (
+                                <span key={key} className="flex items-center gap-1">
+                                    <span>{val.icon}</span>
+                                    <span className={`page-type-badge ${val.color}`}>{val.label}</span>
+                                </span>
+                            ))}
+                            <span className="ml-2 font-semibold text-gray-600 dark:text-gray-300">Stato:</span>
+                            {Object.entries(STATUS_LABELS).map(([key, val]) => (
+                                <span key={key} className="flex items-center gap-1">
+                                    <span className={`w-2 h-2 rounded-full ${STATUS_COLORS[key]}`} />
+                                    <span className="text-gray-600 dark:text-gray-400">{val}</span>
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Sitemap Tree */}
+                    <div className="min-h-[300px]">
+                        {sitemap.pages.length === 0 ? (
+                            <div className="glass rounded-2xl p-12 text-center">
+                                <div className="text-5xl mb-4">🗺️</div>
+                                <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">Nessuna pagina</h3>
+                                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Inizia aggiungendo la prima pagina alla tua sitemap</p>
+                                <button onClick={addRootPage} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-600 text-white hover:bg-brand-700 transition-colors text-sm font-medium">
+                                    <Icons.Plus /> Aggiungi prima pagina
+                                </button>
+                            </div>
+                        ) : (
+                            sitemap.pages.map(page => (
+                                <PageNode
+                                    key={page.id}
+                                    page={page}
+                                    depth={0}
+                                    sitemap={sitemap}
+                                    setSitemap={setSitemap}
+                                    onEdit={setEditingPage}
+                                    dragState={dragState}
+                                    setDragState={setDragState}
+                                    searchTerm={searchTerm}
+                                    history={history}
+                                />
+                            ))
+                        )}
+                    </div>
+
+                    {/* Drag hint */}
+                    <div className="glass rounded-2xl p-4 mt-6 text-center no-print">
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                            Trascina le pagine per riordinarle e spostarle tra i livelli. Usa i pulsanti freccia per spostare su/giù o cambiare livello gerarchico.
+                            <br />Scorciatoie: <kbd className="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-[10px] font-mono">Ctrl+Z</kbd> Annulla &middot; <kbd className="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-[10px] font-mono">Ctrl+Y</kbd> Ripristina
+                        </p>
+                    </div>
+
+                    {/* Footer */}
+                    <footer className="text-center mt-8 mb-4 text-xs text-gray-400 dark:text-gray-500 no-print">
+                        Sitemap Creator &mdash; Lo stato viene salvato automaticamente nel browser e nell'URL
+                    </footer>
+
+                    {/* Edit Modal */}
+                    <EditPageModal
+                        page={editingPage}
+                        isOpen={!!editingPage}
+                        onClose={() => setEditingPage(null)}
+                        onSave={handleEditSave}
+                    />
+
+                    {/* Settings Modal */}
+                    <Modal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} title="Impostazioni Progetto">
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome Progetto</label>
+                                <input
+                                    value={sitemap.name}
+                                    onChange={e => setSitemap(prev => ({...prev, name: e.target.value}))}
+                                    className="w-full glass-input rounded-xl px-3 py-2 text-sm text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descrizione</label>
+                                <textarea
+                                    value={sitemap.description}
+                                    onChange={e => setSitemap(prev => ({...prev, description: e.target.value}))}
+                                    rows={3}
+                                    className="w-full glass-input rounded-xl px-3 py-2 text-sm text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"
+                                />
+                            </div>
+                            <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                                <button onClick={resetSitemap} className="text-sm text-red-500 hover:text-red-600 transition-colors font-medium">
+                                    Resetta alla sitemap predefinita
+                                </button>
+                            </div>
+                        </div>
+                    </Modal>
+
+                    <Toast message={toast.message} visible={toast.visible} />
+                </div>
+            );
+        }
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+</html>
