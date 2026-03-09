@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sitemap Creator - Visual Sitemap Builder</title>
+    <title>SIS Sitemap Creator</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -63,10 +63,13 @@
         .modal-overlay { background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); }
 
         .tooltip { position: relative; }
-        .tooltip::after { content: attr(data-tip); position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%) translateY(4px); padding: 4px 8px; background: #1e293b; color: white; font-size: 0.7rem; border-radius: 6px; white-space: nowrap; opacity: 0; pointer-events: none; transition: all 0.15s ease; }
+        .tooltip::after { content: attr(data-tip); position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%) translateY(4px); padding: 4px 8px; background: #1e293b; color: white; font-size: 0.7rem; border-radius: 6px; white-space: nowrap; opacity: 0; pointer-events: none; transition: all 0.15s ease; z-index: 50; }
         .tooltip:hover::after { opacity: 1; transform: translateX(-50%) translateY(-4px); }
 
-        /* Scrollbar */
+        .sitemap-tab { transition: all 0.15s ease; }
+        .sitemap-tab.active { background: rgba(99,102,241,0.15); border-color: rgba(99,102,241,0.4); color: #4f46e5; }
+        .dark .sitemap-tab.active { background: rgba(99,102,241,0.2); border-color: rgba(129,140,248,0.3); color: #a5b4fc; }
+
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.2); border-radius: 3px; }
@@ -89,207 +92,200 @@
         const generateId = () => Math.random().toString(36).substr(2, 9);
 
         const PAGE_TYPES = {
-            page: { label: 'Pagina', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300', icon: '📄' },
-            section: { label: 'Sezione', color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300', icon: '📁' },
-            form: { label: 'Form', color: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300', icon: '📝' },
-            modal: { label: 'Modale', color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300', icon: '🪟' },
-            external: { label: 'Esterno', color: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300', icon: '🔗' },
-            api: { label: 'API', color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300', icon: '⚡' },
-            auth: { label: 'Auth', color: 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300', icon: '🔒' },
-            utility: { label: 'Utility', color: 'bg-gray-100 text-gray-700 dark:bg-gray-800/60 dark:text-gray-300', icon: '⚙️' },
+            section: { label: 'Section', color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300', icon: '📁' },
+            page:    { label: 'Page',    color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300', icon: '📄' },
+            module:  { label: 'Module',  color: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300', icon: '📦' },
         };
 
-        const STATUS_COLORS = {
-            draft: 'bg-gray-300 dark:bg-gray-600',
-            inProgress: 'bg-yellow-400 dark:bg-yellow-500',
-            review: 'bg-blue-400 dark:bg-blue-500',
-            done: 'bg-green-400 dark:bg-green-500',
+        const STATUS_OPTIONS = {
+            none:     { label: '—',          dot: 'bg-transparent border border-gray-300 dark:border-gray-600' },
+            review:   { label: 'In Review',  dot: 'bg-blue-400 dark:bg-blue-500' },
+            done:     { label: 'Done',       dot: 'bg-green-400 dark:bg-green-500' },
         };
-        const STATUS_LABELS = { draft: 'Bozza', inProgress: 'In Corso', review: 'In Revisione', done: 'Completato' };
 
-        // Helper for concise node creation
+        // Helper
         const n = (name, path, type, notes, children) => ({
-            id: generateId(), name, path, type: type || 'page', status: 'draft', notes: notes || '', collapsed: false, children: children || []
+            id: generateId(), name, path, type: type || 'page', status: 'none', notes: notes || '', collapsed: false, children: children || []
         });
 
-        const DEFAULT_SITEMAP = {
-            id: generateId(),
-            name: 'SIS — Admin',
-            description: 'Sitemap della piattaforma Student Information System — Vista Admin',
-            pages: [
-                n('Home', '/', 'section', 'Area principale dell\'admin', [
-                    n('Dashboard operativa', '/dashboard', 'page', 'Alert, scadenze'),
-                    n('Notifiche / To-do', '/notifications', 'page', ''),
-                    n('Ricerca globale', '/search', 'page', 'Studenti, docenti, classi'),
-                    n('Calendario', '/calendar', 'page', 'Eventi, chiusure, extra period'),
-                ]),
+        const DEFAULT_SITEMAPS = [
+            {
+                id: generateId(),
+                name: 'Admin',
+                description: 'Full platform access — School Administrator',
+                pages: [
+                    n('Home', '/', 'section', '', [
+                        n('Operational Dashboard', '/dashboard', 'page', 'Alerts, deadlines, quick actions'),
+                        n('Notifications / To-do', '/notifications', 'page', ''),
+                        n('Global Search', '/search', 'page', 'Students, teachers, classes'),
+                        n('Calendar', '/calendar', 'page', 'Events, closures, extra periods'),
+                    ]),
 
-                n('Persone', '/persone', 'section', '', [
-                    n('Studenti', '/persone/studenti', 'section', '', [
-                        n('Lista / filtri', '/persone/studenti/lista', 'page', ''),
-                        n('Scheda studente', '/persone/studenti/:id', 'page', '', [
-                            n('Anagrafica', '/persone/studenti/:id/anagrafica', 'page', ''),
-                            n('Documenti', '/persone/studenti/:id/documenti', 'page', ''),
-                            n('Dati medici & Learning Support', '/persone/studenti/:id/medico', 'page', ''),
-                            n('Referenti / Guardian + consensi', '/persone/studenti/:id/guardian', 'page', ''),
-                            n('Presenze (storico)', '/persone/studenti/:id/presenze', 'page', ''),
-                            n('Valutazioni / pagelle', '/persone/studenti/:id/valutazioni', 'page', ''),
-                            n('Pagamenti / rette', '/persone/studenti/:id/pagamenti', 'page', ''),
-                        ]),
-                    ]),
-                    n('Genitori', '/persone/genitori', 'section', '', [
-                        n('Lista', '/persone/genitori/lista', 'page', ''),
-                        n('Profilo + studenti collegati', '/persone/genitori/:id', 'page', ''),
-                    ]),
-                    n('Personale', '/persone/personale', 'section', '', [
-                        n('Docenti (lista + profilo)', '/persone/personale/docenti', 'page', ''),
-                        n('Staff (lista + profilo)', '/persone/personale/staff', 'page', ''),
-                    ]),
-                ]),
-
-                n('Classi & Orario', '/classi', 'section', '', [
-                    n('Struttura scolastica', '/classi/struttura', 'section', '', [
-                        n('Dipartimenti', '/classi/struttura/dipartimenti', 'page', ''),
-                        n('Gradi', '/classi/struttura/gradi', 'page', ''),
-                        n('Homeroom / Classi', '/classi/struttura/homeroom', 'page', ''),
-                    ]),
-                    n('Calendario scolastico', '/classi/calendario', 'page', 'Vista operativa con filtri'),
-                    n('Timetabling / Orari', '/classi/orari', 'section', '', [
-                        n('Vista orario', '/classi/orari/vista', 'page', 'Classe / docente / aula'),
-                        n('Modifiche / aggiustamenti', '/classi/orari/edit', 'page', 'Manual edit'),
-                    ]),
-                    n('Assegnazioni', '/classi/assegnazioni', 'section', '', [
-                        n('Assegnazione studenti → classe', '/classi/assegnazioni/studenti', 'page', ''),
-                        n('Associazione docenti → classe', '/classi/assegnazioni/docenti', 'page', ''),
-                    ]),
-                ]),
-
-                n('Didattica', '/didattica', 'section', '', [
-                    n('Presenze studenti', '/didattica/presenze', 'section', '', [
-                        n('Registro giornaliero', '/didattica/presenze/registro', 'page', ''),
-                        n('Ritardi / uscite anticipate', '/didattica/presenze/ritardi', 'page', ''),
-                        n('Report servizi', '/didattica/presenze/servizi', 'page', 'Mensa / bus / doposcuola'),
-                    ]),
-                    n('Assenze & sostituzioni docenti', '/didattica/sostituzioni', 'section', '', [
-                        n('Presenze docenti del giorno', '/didattica/sostituzioni/presenze', 'page', ''),
-                        n('Inserimento assenza', '/didattica/sostituzioni/assenza', 'form', ''),
-                        n('Docenti disponibili', '/didattica/sostituzioni/disponibili', 'page', ''),
-                        n('Assegnazione copertura + report ore', '/didattica/sostituzioni/copertura', 'page', ''),
-                    ]),
-                    n('Valutazioni & scrutini', '/didattica/valutazioni', 'section', '', [
-                        n('Gestione valutazioni', '/didattica/valutazioni/gestione', 'page', 'Periodi + scale'),
-                        n('Vista voti per classe', '/didattica/valutazioni/voti', 'page', ''),
-                        n('Gestione scrutinio', '/didattica/valutazioni/scrutinio', 'page', 'Pianificazione + chiusura'),
-                        n('Generazione pagelle (PDF)', '/didattica/valutazioni/pagelle', 'page', ''),
-                        n('Invio pagelle alle famiglie', '/didattica/valutazioni/invio', 'page', ''),
-                    ]),
-                ]),
-
-                n('Ammissioni & Iscrizioni', '/ammissioni', 'section', '', [
-                    n('Config Google Forms', '/ammissioni/forms', 'utility', ''),
-                    n('Pipeline candidature', '/ammissioni/pipeline', 'page', ''),
-                    n('Dettaglio candidatura + stato', '/ammissioni/:id', 'page', ''),
-                    n('Firma digitale contratto', '/ammissioni/firma', 'form', ''),
-                    n('Iscrizione → creazione profilo studente', '/ammissioni/iscrizione', 'page', ''),
-                ]),
-
-                n('Pagamenti', '/pagamenti', 'section', '', [
-                    n('Rette per studente', '/pagamenti/rette', 'page', 'Lista + stato + insoluti'),
-                    n('Pagamenti extra', '/pagamenti/extra', 'page', 'Gite, felpe, ecc.'),
-                    n('Export Excel per Arca', '/pagamenti/export', 'utility', ''),
-                ]),
-
-                n('Comunicazioni', '/comunicazioni', 'section', '', [
-                    n('Invio comunicazione', '/comunicazioni/invio', 'form', 'A gruppi selezionati'),
-                    n('Archivio', '/comunicazioni/archivio', 'page', ''),
-                    n('Report lettura, errori invio & GDPR', '/comunicazioni/report', 'page', ''),
-                ]),
-
-                n('Report', '/report', 'section', '', [
-                    n('Report studenti', '/report/studenti', 'page', ''),
-                    n('Report docenti', '/report/docenti', 'page', ''),
-                    n('Report presenze', '/report/presenze', 'page', ''),
-                    n('Report servizi', '/report/servizi', 'page', ''),
-                    n('Export report personalizzati', '/report/export', 'utility', ''),
-                ]),
-
-                n('Impostazioni & Privacy', '/impostazioni', 'section', '', [
-                    n('Setup (Wizard iniziale)', '/impostazioni/setup', 'section', 'Sequenziale e gated', [
-                        n('Step 1 — Struttura Base', '/impostazioni/setup/step-1', 'section', '', [
-                            n('School Identity', '/impostazioni/setup/step-1/identity', 'page', ''),
-                            n('Academic Year', '/impostazioni/setup/step-1/anno', 'section', '', [
-                                n('Term(s)', '/impostazioni/setup/step-1/anno/terms', 'page', ''),
-                                n('Closing(s)', '/impostazioni/setup/step-1/anno/closings', 'page', ''),
-                                n('Extra Period(s)', '/impostazioni/setup/step-1/anno/extra', 'page', ''),
-                            ]),
-                            n('Departments', '/impostazioni/setup/step-1/departments', 'page', 'Name + homeroom_role + scheduling_mode'),
-                            n('Grades', '/impostazioni/setup/step-1/grades', 'page', ''),
-                        ]),
-                        n('Step 2 — Import Base', '/impostazioni/setup/step-2', 'section', '', [
-                            n('Import Studenti', '/impostazioni/setup/step-2/studenti', 'utility', ''),
-                            n('Import Docenti', '/impostazioni/setup/step-2/docenti', 'utility', ''),
-                            n('Import Staff', '/impostazioni/setup/step-2/staff', 'utility', ''),
-                        ]),
-                        n('Step 3 — Configurazione Accademica', '/impostazioni/setup/step-3', 'section', '', [
-                            n('Day Templates', '/impostazioni/setup/step-3/day-templates', 'page', ''),
-                            n('Lunch Shift', '/impostazioni/setup/step-3/lunch', 'page', ''),
-                            n('Rooms', '/impostazioni/setup/step-3/rooms', 'page', ''),
-                            n('Evaluation Periods', '/impostazioni/setup/step-3/eval-periods', 'page', ''),
-                            n('Evaluation Scales', '/impostazioni/setup/step-3/eval-scales', 'page', ''),
-                            n('Curriculum', '/impostazioni/setup/step-3/curriculum', 'page', ''),
-                            n('Subjects', '/impostazioni/setup/step-3/subjects', 'page', ''),
-                            n('Homeroom', '/impostazioni/setup/step-3/homeroom', 'page', ''),
-                            n('Assegnazione Docenti', '/impostazioni/setup/step-3/assegnazione', 'page', ''),
-                            n('Generazione Timetable', '/impostazioni/setup/step-3/timetable', 'page', ''),
-                        ]),
-                        n('Step 4 — Sistema', '/impostazioni/setup/step-4', 'section', '', [
-                            n('Permessi iniziali', '/impostazioni/setup/step-4/permessi', 'auth', ''),
-                            n('Servizi aggiuntivi', '/impostazioni/setup/step-4/servizi', 'page', 'Bus, sicurezza, ecc.'),
-                        ]),
-                    ]),
-                    n('Gestione Scuola', '/impostazioni/gestione', 'section', 'Configurazione permanente', [
-                        n('Identità Scuola', '/impostazioni/gestione/identita', 'section', '', [
-                            n('Modifica School Identity', '/impostazioni/gestione/identita/edit', 'form', ''),
-                        ]),
-                        n('Anni Accademici', '/impostazioni/gestione/anni', 'section', '', [
-                            n('Lista Anni', '/impostazioni/gestione/anni/lista', 'page', '', [
-                                n('Modifica', '/impostazioni/gestione/anni/:id/edit', 'form', ''),
-                                n('Cambia stato', '/impostazioni/gestione/anni/:id/stato', 'page', 'Draft / Active / Archived'),
-                                n('Archivia', '/impostazioni/gestione/anni/:id/archivia', 'page', ''),
-                                n('Duplica', '/impostazioni/gestione/anni/:id/duplica', 'page', ''),
-                            ]),
-                            n('Crea Nuovo Anno', '/impostazioni/gestione/anni/nuovo', 'section', '', [
-                                n('Definizione Anno', '/impostazioni/gestione/anni/nuovo/definizione', 'page', ''),
-                                n('Term(s)', '/impostazioni/gestione/anni/nuovo/terms', 'page', ''),
-                                n('Closing Period(s)', '/impostazioni/gestione/anni/nuovo/closings', 'page', ''),
-                                n('Extra Period(s)', '/impostazioni/gestione/anni/nuovo/extra', 'page', ''),
-                                n('Departments', '/impostazioni/gestione/anni/nuovo/departments', 'page', ''),
-                                n('Grades', '/impostazioni/gestione/anni/nuovo/grades', 'page', ''),
-                                n('Day Templates', '/impostazioni/gestione/anni/nuovo/day-templates', 'page', ''),
-                                n('Lunch Shift', '/impostazioni/gestione/anni/nuovo/lunch', 'page', ''),
-                                n('Rooms', '/impostazioni/gestione/anni/nuovo/rooms', 'page', ''),
-                                n('Evaluation Periods', '/impostazioni/gestione/anni/nuovo/eval-periods', 'page', ''),
-                                n('Evaluation Scales', '/impostazioni/gestione/anni/nuovo/eval-scales', 'page', ''),
-                                n('Curriculum', '/impostazioni/gestione/anni/nuovo/curriculum', 'page', ''),
-                                n('Subjects', '/impostazioni/gestione/anni/nuovo/subjects', 'page', ''),
-                                n('Homeroom', '/impostazioni/gestione/anni/nuovo/homeroom', 'page', ''),
-                                n('Assegnazione Docenti', '/impostazioni/gestione/anni/nuovo/assegnazione', 'page', ''),
-                                n('Generazione Timetable', '/impostazioni/gestione/anni/nuovo/timetable', 'page', ''),
+                    n('People', '/people', 'section', '', [
+                        n('Students', '/people/students', 'section', '', [
+                            n('Student List & Filters', '/people/students/list', 'page', ''),
+                            n('Student Profile', '/people/students/:id', 'page', '', [
+                                n('Personal Information', '/people/students/:id/info', 'module', 'Name, date of birth, nationality, photo, tax code'),
+                                n('Documents', '/people/students/:id/documents', 'module', 'ID, enrollment forms, signed contracts'),
+                                n('Medical & Learning Support', '/people/students/:id/medical', 'module', 'Allergies, IEP/504, special needs flags'),
+                                n('Guardians & Consents', '/people/students/:id/guardians', 'module', 'Parent/guardian links, pickup authorization, GDPR consents'),
+                                n('Attendance History', '/people/students/:id/attendance', 'module', 'Daily records, absences, tardiness summary'),
+                                n('Grades & Report Cards', '/people/students/:id/grades', 'module', 'Per-term grades, final report cards, teacher comments'),
+                                n('Tuition & Payments', '/people/students/:id/payments', 'module', 'Fee schedule, payment status, outstanding balance'),
                             ]),
                         ]),
-                        n('Servizi Scuola', '/impostazioni/gestione/servizi', 'section', '', [
-                            n('Bus', '/impostazioni/gestione/servizi/bus', 'page', ''),
-                            n('Sicurezza', '/impostazioni/gestione/servizi/sicurezza', 'page', ''),
-                            n('Altri servizi', '/impostazioni/gestione/servizi/altri', 'page', ''),
+                        n('Parents / Guardians', '/people/parents', 'section', '', [
+                            n('Parent List', '/people/parents/list', 'page', ''),
+                            n('Parent Profile', '/people/parents/:id', 'page', 'Contact info, linked students'),
+                        ]),
+                        n('Staff', '/people/staff', 'section', '', [
+                            n('Teachers', '/people/staff/teachers', 'page', 'List & profiles'),
+                            n('Non-Teaching Staff', '/people/staff/other', 'page', 'List & profiles'),
                         ]),
                     ]),
-                    n('Ruoli & permessi (RBAC)', '/impostazioni/rbac', 'auth', ''),
-                    n('GDPR & consensi', '/impostazioni/gdpr', 'auth', ''),
-                    n('Audit trail & log accessi', '/impostazioni/audit', 'page', ''),
-                    n('Import / Export utenti', '/impostazioni/import-export', 'utility', ''),
-                ]),
-            ]
-        };
+
+                    n('Classes & Schedule', '/classes', 'section', '', [
+                        n('School Structure', '/classes/structure', 'section', '', [
+                            n('Departments', '/classes/structure/departments', 'page', ''),
+                            n('Grade Levels', '/classes/structure/grades', 'page', ''),
+                            n('Homerooms / Sections', '/classes/structure/homerooms', 'page', ''),
+                        ]),
+                        n('School Calendar', '/classes/calendar', 'page', 'Operational view with filters'),
+                        n('Timetable', '/classes/timetable', 'section', '', [
+                            n('Timetable View', '/classes/timetable/view', 'page', 'By class / teacher / room'),
+                            n('Manual Adjustments', '/classes/timetable/edit', 'page', ''),
+                        ]),
+                        n('Assignments', '/classes/assignments', 'section', '', [
+                            n('Enroll Students in Class', '/classes/assignments/students', 'page', ''),
+                            n('Assign Teachers to Class', '/classes/assignments/teachers', 'page', ''),
+                        ]),
+                    ]),
+
+                    n('Academics', '/academics', 'section', '', [
+                        n('Student Attendance', '/academics/attendance', 'section', '', [
+                            n('Daily Register', '/academics/attendance/daily', 'page', ''),
+                            n('Late Arrivals / Early Dismissals', '/academics/attendance/tardiness', 'page', ''),
+                            n('Service Attendance Reports', '/academics/attendance/services', 'page', 'Lunch, bus, after-school'),
+                        ]),
+                        n('Teacher Absences & Substitutions', '/academics/substitutions', 'section', '', [
+                            n('Daily Teacher Attendance', '/academics/substitutions/attendance', 'page', ''),
+                            n('Log Teacher Absence', '/academics/substitutions/log', 'page', ''),
+                            n('Available Substitutes', '/academics/substitutions/available', 'page', ''),
+                            n('Coverage Assignment & Hours Report', '/academics/substitutions/coverage', 'page', ''),
+                        ]),
+                        n('Grading & Report Cards', '/academics/grading', 'section', '', [
+                            n('Grading Setup', '/academics/grading/setup', 'module', 'Evaluation periods, grading scales'),
+                            n('Gradebook by Class', '/academics/grading/gradebook', 'page', ''),
+                            n('Report Card Management', '/academics/grading/report-cards', 'page', 'Planning, closing, finalization'),
+                            n('Generate Report Cards (PDF)', '/academics/grading/generate', 'page', ''),
+                            n('Send Report Cards to Families', '/academics/grading/send', 'page', ''),
+                        ]),
+                    ]),
+
+                    n('Admissions & Enrollment', '/admissions', 'section', '', [
+                        n('Application Form Config', '/admissions/forms', 'page', 'Google Forms integration'),
+                        n('Application Pipeline', '/admissions/pipeline', 'page', 'Kanban or list view of applicants'),
+                        n('Application Detail', '/admissions/:id', 'page', 'Status, documents, notes'),
+                        n('Digital Contract Signing', '/admissions/contract', 'page', ''),
+                        n('Enrollment to Student Profile', '/admissions/enroll', 'page', 'Convert accepted applicant to active student'),
+                    ]),
+
+                    n('Payments', '/payments', 'section', '', [
+                        n('Tuition by Student', '/payments/tuition', 'page', 'List, status, overdue'),
+                        n('Extra Payments', '/payments/extras', 'page', 'Field trips, uniforms, etc.'),
+                        n('Export for Accounting', '/payments/export', 'page', 'Excel export for Arca'),
+                    ]),
+
+                    n('Communications', '/communications', 'section', '', [
+                        n('Send Communication', '/communications/send', 'page', 'To selected groups'),
+                        n('Archive', '/communications/archive', 'page', ''),
+                        n('Delivery & Read Reports', '/communications/reports', 'page', 'Read receipts, errors, GDPR compliance'),
+                    ]),
+
+                    n('Reports', '/reports', 'section', '', [
+                        n('Student Reports', '/reports/students', 'page', ''),
+                        n('Teacher Reports', '/reports/teachers', 'page', ''),
+                        n('Attendance Reports', '/reports/attendance', 'page', ''),
+                        n('Service Reports', '/reports/services', 'page', ''),
+                        n('Custom Report Export', '/reports/export', 'page', ''),
+                    ]),
+
+                    n('Settings & Privacy', '/settings', 'section', '', [
+                        n('Initial Setup Wizard', '/settings/setup', 'section', 'Sequential & gated', [
+                            n('Step 1 — Base Structure', '/settings/setup/step-1', 'section', '', [
+                                n('School Identity', '/settings/setup/step-1/identity', 'module', 'Name, logo, address, contacts'),
+                                n('Academic Year', '/settings/setup/step-1/year', 'section', '', [
+                                    n('Terms', '/settings/setup/step-1/year/terms', 'module', 'Start/end dates, name'),
+                                    n('Closing Periods', '/settings/setup/step-1/year/closings', 'module', 'Holidays, breaks'),
+                                    n('Extra Periods', '/settings/setup/step-1/year/extras', 'module', 'Summer school, camps'),
+                                ]),
+                                n('Departments', '/settings/setup/step-1/departments', 'module', 'Name, homeroom role, scheduling mode'),
+                                n('Grade Levels', '/settings/setup/step-1/grades', 'module', ''),
+                            ]),
+                            n('Step 2 — Base Import', '/settings/setup/step-2', 'section', '', [
+                                n('Import Students', '/settings/setup/step-2/students', 'page', 'CSV/Excel upload'),
+                                n('Import Teachers', '/settings/setup/step-2/teachers', 'page', ''),
+                                n('Import Staff', '/settings/setup/step-2/staff', 'page', ''),
+                            ]),
+                            n('Step 3 — Academic Configuration', '/settings/setup/step-3', 'section', '', [
+                                n('Day Templates', '/settings/setup/step-3/day-templates', 'module', 'Period structure per day type'),
+                                n('Lunch Shifts', '/settings/setup/step-3/lunch', 'module', ''),
+                                n('Rooms', '/settings/setup/step-3/rooms', 'module', ''),
+                                n('Evaluation Periods', '/settings/setup/step-3/eval-periods', 'module', ''),
+                                n('Grading Scales', '/settings/setup/step-3/grading-scales', 'module', ''),
+                                n('Curriculum', '/settings/setup/step-3/curriculum', 'module', ''),
+                                n('Subjects', '/settings/setup/step-3/subjects', 'module', ''),
+                                n('Homerooms', '/settings/setup/step-3/homerooms', 'module', ''),
+                                n('Teacher Assignments', '/settings/setup/step-3/assignments', 'module', ''),
+                                n('Timetable Generation', '/settings/setup/step-3/timetable', 'module', ''),
+                            ]),
+                            n('Step 4 — System', '/settings/setup/step-4', 'section', '', [
+                                n('Initial Permissions', '/settings/setup/step-4/permissions', 'module', 'Role setup'),
+                                n('Additional Services', '/settings/setup/step-4/services', 'module', 'Bus, security, etc.'),
+                            ]),
+                        ]),
+                        n('School Management', '/settings/management', 'section', 'Ongoing configuration', [
+                            n('School Identity', '/settings/management/identity', 'page', ''),
+                            n('Academic Years', '/settings/management/years', 'section', '', [
+                                n('Year List', '/settings/management/years/list', 'page', '', [
+                                    n('Edit Year', '/settings/management/years/:id/edit', 'module', ''),
+                                    n('Change Status', '/settings/management/years/:id/status', 'module', 'Draft / Active / Archived'),
+                                    n('Archive Year', '/settings/management/years/:id/archive', 'module', ''),
+                                    n('Duplicate Year', '/settings/management/years/:id/duplicate', 'module', ''),
+                                ]),
+                                n('Create New Year', '/settings/management/years/new', 'section', '', [
+                                    n('Year Definition', '/settings/management/years/new/definition', 'module', ''),
+                                    n('Terms', '/settings/management/years/new/terms', 'module', ''),
+                                    n('Closing Periods', '/settings/management/years/new/closings', 'module', ''),
+                                    n('Extra Periods', '/settings/management/years/new/extras', 'module', ''),
+                                    n('Departments', '/settings/management/years/new/departments', 'module', ''),
+                                    n('Grade Levels', '/settings/management/years/new/grades', 'module', ''),
+                                    n('Day Templates', '/settings/management/years/new/day-templates', 'module', ''),
+                                    n('Lunch Shifts', '/settings/management/years/new/lunch', 'module', ''),
+                                    n('Rooms', '/settings/management/years/new/rooms', 'module', ''),
+                                    n('Evaluation Periods', '/settings/management/years/new/eval-periods', 'module', ''),
+                                    n('Grading Scales', '/settings/management/years/new/grading-scales', 'module', ''),
+                                    n('Curriculum', '/settings/management/years/new/curriculum', 'module', ''),
+                                    n('Subjects', '/settings/management/years/new/subjects', 'module', ''),
+                                    n('Homerooms', '/settings/management/years/new/homerooms', 'module', ''),
+                                    n('Teacher Assignments', '/settings/management/years/new/assignments', 'module', ''),
+                                    n('Timetable Generation', '/settings/management/years/new/timetable', 'module', ''),
+                                ]),
+                            ]),
+                            n('School Services', '/settings/management/services', 'section', '', [
+                                n('Bus Service', '/settings/management/services/bus', 'module', ''),
+                                n('Security', '/settings/management/services/security', 'module', ''),
+                                n('Other Services', '/settings/management/services/other', 'module', ''),
+                            ]),
+                        ]),
+                        n('Roles & Permissions (RBAC)', '/settings/rbac', 'page', ''),
+                        n('GDPR & Consents', '/settings/gdpr', 'page', ''),
+                        n('Audit Trail & Access Logs', '/settings/audit', 'page', ''),
+                        n('User Import / Export', '/settings/import-export', 'page', ''),
+                    ]),
+                ]
+            }
+        ];
 
         // ============ DEEP TREE HELPERS ============
         function findNode(pages, id) {
@@ -348,46 +344,27 @@
             return max;
         }
 
-        function flattenPages(pages, depth = 0) {
-            let result = [];
-            for (const p of pages) {
-                result.push({ ...p, depth });
-                if (p.children) result = result.concat(flattenPages(p.children, depth + 1));
-            }
-            return result;
-        }
-
         function deepClone(obj) { return JSON.parse(JSON.stringify(obj)); }
 
         // ============ STORAGE ============
-        const STORAGE_KEY = 'sitemap_creator_data';
+        const STORAGE_KEY = 'sitemap_creator_v2';
 
         function loadState() {
             try {
-                const hash = window.location.hash.slice(1);
-                if (hash) {
-                    try {
-                        const decoded = JSON.parse(decodeURIComponent(atob(hash)));
-                        if (decoded && decoded.pages) return decoded;
-                    } catch(e) {}
-                }
                 const saved = localStorage.getItem(STORAGE_KEY);
-                if (saved) { const parsed = JSON.parse(saved); if (parsed && parsed.pages) return parsed; }
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    if (parsed && parsed.sitemaps && parsed.sitemaps.length > 0) return parsed;
+                }
             } catch(e) {}
-            return DEFAULT_SITEMAP;
+            return { activeSitemapId: DEFAULT_SITEMAPS[0].id, sitemaps: DEFAULT_SITEMAPS };
         }
 
         function saveState(state) {
-            try {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-                const encoded = btoa(encodeURIComponent(JSON.stringify(state)));
-                if (encoded.length < 8000) {
-                    window.history.replaceState(null, '', '#' + encoded);
-                }
-            } catch(e) {}
+            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e) {}
         }
 
-        // ============ ICONS (SVG) ============
+        // ============ ICONS ============
         const Icons = {
             Plus: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg>,
             Trash: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>,
@@ -398,7 +375,6 @@
             Sun: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>,
             Download: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>,
             Upload: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>,
-            Copy: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>,
             Search: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>,
             Grip: () => <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 24 24"><circle cx="9" cy="5" r="1.5"/><circle cx="15" cy="5" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="19" r="1.5"/><circle cx="15" cy="19" r="1.5"/></svg>,
             ExpandAll: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg>,
@@ -412,9 +388,10 @@
             MoveDown: () => <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/></svg>,
             LevelUp: () => <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>,
             LevelDown: () => <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>,
+            X: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>,
         };
 
-        // ============ MODAL COMPONENT ============
+        // ============ MODAL ============
         function Modal({ isOpen, onClose, title, children, wide }) {
             if (!isOpen) return null;
             return (
@@ -422,7 +399,7 @@
                     <div className={`glass rounded-2xl p-6 w-full ${wide ? 'max-w-2xl' : 'max-w-md'} fade-in max-h-[90vh] overflow-y-auto`} onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-lg font-semibold text-gray-800 dark:text-white">{title}</h3>
-                            <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors">&times;</button>
+                            <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors"><Icons.X /></button>
                         </div>
                         {children}
                     </div>
@@ -433,18 +410,15 @@
         // ============ TOAST ============
         function Toast({ message, visible }) {
             if (!visible) return null;
-            return (
-                <div className="fixed bottom-6 right-6 z-50 glass rounded-xl px-4 py-2.5 text-sm font-medium text-gray-800 dark:text-white fade-in shadow-lg">
-                    {message}
-                </div>
-            );
+            return <div className="fixed bottom-6 right-6 z-50 glass rounded-xl px-4 py-2.5 text-sm font-medium text-gray-800 dark:text-white fade-in shadow-lg">{message}</div>;
         }
 
-        // ============ PAGE NODE COMPONENT ============
+        // ============ PAGE NODE ============
         function PageNode({ page, depth, sitemap, setSitemap, onEdit, dragState, setDragState, searchTerm, history }) {
             const nodeRef = useRef(null);
             const hasChildren = page.children && page.children.length > 0;
             const typeInfo = PAGE_TYPES[page.type] || PAGE_TYPES.page;
+            const statusInfo = STATUS_OPTIONS[page.status] || STATUS_OPTIONS.none;
             const isMatch = searchTerm && page.name.toLowerCase().includes(searchTerm.toLowerCase());
             const isSearching = searchTerm && searchTerm.length > 0;
 
@@ -481,9 +455,7 @@
 
             const handleDragLeave = (e) => {
                 e.stopPropagation();
-                if (dragState.overId === page.id) {
-                    setDragState(prev => ({ ...prev, overId: null, position: null }));
-                }
+                if (dragState.overId === page.id) setDragState(prev => ({ ...prev, overId: null, position: null }));
             };
 
             const handleDrop = (e) => {
@@ -502,10 +474,7 @@
 
                     if (dragState.position === 'inside') {
                         const target = findNode(pages, page.id);
-                        if (target) {
-                            if (!target.children) target.children = [];
-                            target.children.push(dragNodeCopy);
-                        }
+                        if (target) { if (!target.children) target.children = []; target.children.push(dragNodeCopy); }
                     } else {
                         const parent = findParent(pages, page.id);
                         const siblings = parent ? parent.children : pages;
@@ -520,11 +489,8 @@
 
             const addChild = () => {
                 history.push(sitemap);
-                const newPage = { id: generateId(), name: 'Nuova Pagina', path: '/', type: 'page', status: 'draft', notes: '', collapsed: false, children: [] };
-                setSitemap(prev => ({
-                    ...prev,
-                    pages: updateNode(prev.pages, page.id, { children: [...(page.children || []), newPage], collapsed: false })
-                }));
+                const newPage = { id: generateId(), name: 'New Page', path: '/', type: 'page', status: 'none', notes: '', collapsed: false, children: [] };
+                setSitemap(prev => ({ ...prev, pages: updateNode(prev.pages, page.id, { children: [...(page.children || []), newPage], collapsed: false }) }));
             };
 
             const deletePage = () => {
@@ -537,13 +503,10 @@
                 const dup = deepClone(page);
                 const reassignIds = (node) => { node.id = generateId(); (node.children || []).forEach(reassignIds); };
                 reassignIds(dup);
-                dup.name = page.name + ' (copia)';
+                dup.name = page.name + ' (copy)';
                 const parent = findParent(sitemap.pages, page.id);
-                if (parent) {
-                    setSitemap(prev => ({ ...prev, pages: insertNode(prev.pages, parent.id, dup) }));
-                } else {
-                    setSitemap(prev => ({ ...prev, pages: [...prev.pages, dup] }));
-                }
+                if (parent) setSitemap(prev => ({ ...prev, pages: insertNode(prev.pages, parent.id, dup) }));
+                else setSitemap(prev => ({ ...prev, pages: [...prev.pages, dup] }));
             };
 
             const moveUp = () => {
@@ -578,15 +541,9 @@
                     if (!parent) return prev;
                     const grandParent = findParent(pages, parent.id);
                     const node = deepClone(findNode(pages, page.id));
-                    const parentInTree = findNode(pages, parent.id);
-                    parentInTree.children = parentInTree.children.filter(c => c.id !== page.id);
-                    if (grandParent) {
-                        const idx = grandParent.children.findIndex(c => c.id === parent.id);
-                        grandParent.children.splice(idx + 1, 0, node);
-                    } else {
-                        const idx = pages.findIndex(c => c.id === parent.id);
-                        pages.splice(idx + 1, 0, node);
-                    }
+                    findNode(pages, parent.id).children = findNode(pages, parent.id).children.filter(c => c.id !== page.id);
+                    if (grandParent) { const idx = grandParent.children.findIndex(c => c.id === parent.id); grandParent.children.splice(idx + 1, 0, node); }
+                    else { const idx = pages.findIndex(c => c.id === parent.id); pages.splice(idx + 1, 0, node); }
                     return { ...prev, pages };
                 });
             };
@@ -606,6 +563,13 @@
                     prevSibling.children.push(node);
                     return { ...prev, pages };
                 });
+            };
+
+            const cycleStatus = () => {
+                history.push(sitemap);
+                const order = ['none', 'review', 'done'];
+                const next = order[(order.indexOf(page.status) + 1) % order.length];
+                setSitemap(prev => ({ ...prev, pages: updateNode(prev.pages, page.id, { status: next }) }));
             };
 
             const isOver = dragState.overId === page.id;
@@ -633,9 +597,7 @@
                         className={`glass-card rounded-xl p-3 mb-2 group cursor-grab active:cursor-grabbing ${dropIndicator} ${isMatch ? 'ring-2 ring-yellow-400' : ''}`}
                     >
                         <div className="flex items-center gap-2">
-                            <div className="flex-shrink-0 cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                                <Icons.Grip />
-                            </div>
+                            <div className="flex-shrink-0 cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"><Icons.Grip /></div>
 
                             {hasChildren ? (
                                 <button onClick={toggleCollapse} className="flex-shrink-0 p-0.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-gray-500 dark:text-gray-400">
@@ -649,43 +611,30 @@
                                 <div className="flex items-center gap-2 flex-wrap">
                                     <span className="font-semibold text-gray-800 dark:text-white text-sm truncate">{page.name}</span>
                                     <span className={`page-type-badge ${typeInfo.color}`}>{typeInfo.label}</span>
-                                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS_COLORS[page.status]}`} title={STATUS_LABELS[page.status]} />
+                                    <button onClick={cycleStatus} className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${statusInfo.dot} cursor-pointer hover:scale-125 transition-transform`} title={statusInfo.label} />
                                 </div>
                                 <span className="text-xs text-gray-500 dark:text-gray-400 font-mono">{page.path}</span>
                             </div>
 
                             <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 no-print">
-                                <button onClick={moveUp} className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors tooltip" data-tip="Sposta su"><Icons.MoveUp /></button>
-                                <button onClick={moveDown} className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors tooltip" data-tip="Sposta giù"><Icons.MoveDown /></button>
-                                <button onClick={promoteLevel} className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors tooltip" data-tip="Livello su"><Icons.LevelUp /></button>
-                                <button onClick={demoteLevel} className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors tooltip" data-tip="Livello giù"><Icons.LevelDown /></button>
+                                <button onClick={moveUp} className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors tooltip" data-tip="Move up"><Icons.MoveUp /></button>
+                                <button onClick={moveDown} className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors tooltip" data-tip="Move down"><Icons.MoveDown /></button>
+                                <button onClick={promoteLevel} className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors tooltip" data-tip="Level up"><Icons.LevelUp /></button>
+                                <button onClick={demoteLevel} className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors tooltip" data-tip="Level down"><Icons.LevelDown /></button>
                                 <div className="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-0.5" />
-                                <button onClick={addChild} className="p-1 rounded hover:bg-green-100 dark:hover:bg-green-900/30 text-gray-400 hover:text-green-600 dark:hover:text-green-400 transition-colors tooltip" data-tip="Aggiungi figlio"><Icons.Plus /></button>
-                                <button onClick={duplicatePage} className="p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors tooltip" data-tip="Duplica"><Icons.Duplicate /></button>
-                                <button onClick={() => onEdit(page)} className="p-1 rounded hover:bg-brand-100 dark:hover:bg-brand-900/30 text-gray-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors tooltip" data-tip="Modifica"><Icons.Edit /></button>
-                                <button onClick={deletePage} className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-gray-400 hover:text-red-500 transition-colors tooltip" data-tip="Elimina"><Icons.Trash /></button>
+                                <button onClick={addChild} className="p-1 rounded hover:bg-green-100 dark:hover:bg-green-900/30 text-gray-400 hover:text-green-600 dark:hover:text-green-400 transition-colors tooltip" data-tip="Add child"><Icons.Plus /></button>
+                                <button onClick={duplicatePage} className="p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors tooltip" data-tip="Duplicate"><Icons.Duplicate /></button>
+                                <button onClick={() => onEdit(page)} className="p-1 rounded hover:bg-brand-100 dark:hover:bg-brand-900/30 text-gray-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors tooltip" data-tip="Edit"><Icons.Edit /></button>
+                                <button onClick={deletePage} className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-gray-400 hover:text-red-500 transition-colors tooltip" data-tip="Delete"><Icons.Trash /></button>
                             </div>
                         </div>
-                        {page.notes && (
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5 ml-12 italic line-clamp-1">{page.notes}</p>
-                        )}
+                        {page.notes && <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5 ml-12 italic line-clamp-1">{page.notes}</p>}
                     </div>
 
                     {hasChildren && !page.collapsed && (
                         <div className="collapse-transition">
                             {page.children.map(child => (
-                                <PageNode
-                                    key={child.id}
-                                    page={child}
-                                    depth={depth + 1}
-                                    sitemap={sitemap}
-                                    setSitemap={setSitemap}
-                                    onEdit={onEdit}
-                                    dragState={dragState}
-                                    setDragState={setDragState}
-                                    searchTerm={searchTerm}
-                                    history={history}
-                                />
+                                <PageNode key={child.id} page={child} depth={depth + 1} sitemap={sitemap} setSitemap={setSitemap} onEdit={onEdit} dragState={dragState} setDragState={setDragState} searchTerm={searchTerm} history={history} />
                             ))}
                         </div>
                     )}
@@ -693,78 +642,58 @@
             );
         }
 
-        // ============ EDIT PAGE MODAL ============
+        // ============ EDIT MODAL ============
         function EditPageModal({ page, isOpen, onClose, onSave }) {
-            const [form, setForm] = useState({ name: '', path: '', type: 'page', status: 'draft', notes: '' });
-
-            useEffect(() => {
-                if (page) setForm({ name: page.name, path: page.path, type: page.type, status: page.status, notes: page.notes || '' });
-            }, [page]);
-
+            const [form, setForm] = useState({ name: '', path: '', type: 'page', status: 'none', notes: '' });
+            useEffect(() => { if (page) setForm({ name: page.name, path: page.path, type: page.type, status: page.status, notes: page.notes || '' }); }, [page]);
             const handleSave = () => { onSave(page.id, form); onClose(); };
 
             return (
-                <Modal isOpen={isOpen} onClose={onClose} title="Modifica Pagina">
+                <Modal isOpen={isOpen} onClose={onClose} title="Edit Node">
                     <div className="space-y-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome</label>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
                             <input value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))} className="w-full glass-input rounded-xl px-3 py-2 text-sm text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500" />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Percorso URL</label>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">URL Path</label>
                             <input value={form.path} onChange={e => setForm(f => ({...f, path: e.target.value}))} className="w-full glass-input rounded-xl px-3 py-2 text-sm font-mono text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500" />
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipo</label>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
                                 <select value={form.type} onChange={e => setForm(f => ({...f, type: e.target.value}))} className="w-full glass-input rounded-xl px-3 py-2 text-sm text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500">
-                                    {Object.entries(PAGE_TYPES).map(([key, val]) => (
-                                        <option key={key} value={key}>{val.icon} {val.label}</option>
-                                    ))}
+                                    {Object.entries(PAGE_TYPES).map(([key, val]) => <option key={key} value={key}>{val.icon} {val.label}</option>)}
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Stato</label>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
                                 <select value={form.status} onChange={e => setForm(f => ({...f, status: e.target.value}))} className="w-full glass-input rounded-xl px-3 py-2 text-sm text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500">
-                                    {Object.entries(STATUS_LABELS).map(([key, val]) => (
-                                        <option key={key} value={key}>{val}</option>
-                                    ))}
+                                    {Object.entries(STATUS_OPTIONS).map(([key, val]) => <option key={key} value={key}>{val.label}</option>)}
                                 </select>
                             </div>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Note</label>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
                             <textarea value={form.notes} onChange={e => setForm(f => ({...f, notes: e.target.value}))} rows={3} className="w-full glass-input rounded-xl px-3 py-2 text-sm text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none" />
                         </div>
                         <div className="flex justify-end gap-2 pt-2">
-                            <button onClick={onClose} className="px-4 py-2 text-sm rounded-xl text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">Annulla</button>
-                            <button onClick={handleSave} className="px-4 py-2 text-sm rounded-xl bg-brand-600 text-white hover:bg-brand-700 transition-colors font-medium">Salva</button>
+                            <button onClick={onClose} className="px-4 py-2 text-sm rounded-xl text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">Cancel</button>
+                            <button onClick={handleSave} className="px-4 py-2 text-sm rounded-xl bg-brand-600 text-white hover:bg-brand-700 transition-colors font-medium">Save</button>
                         </div>
                     </div>
                 </Modal>
             );
         }
 
-        // ============ UNDO HISTORY ============
+        // ============ UNDO ============
         function useHistory(maxSize = 50) {
             const undoStack = useRef([]);
             const redoStack = useRef([]);
             return useMemo(() => ({
-                push: (state) => {
-                    undoStack.current.push(deepClone(state));
-                    if (undoStack.current.length > maxSize) undoStack.current.shift();
-                    redoStack.current = [];
-                },
-                undo: (current, setCurrent) => {
-                    if (undoStack.current.length === 0) return;
-                    redoStack.current.push(deepClone(current));
-                    setCurrent(undoStack.current.pop());
-                },
-                redo: (current, setCurrent) => {
-                    if (redoStack.current.length === 0) return;
-                    undoStack.current.push(deepClone(current));
-                    setCurrent(redoStack.current.pop());
-                },
+                push: (state) => { undoStack.current.push(deepClone(state)); if (undoStack.current.length > maxSize) undoStack.current.shift(); redoStack.current = []; },
+                undo: (current, setCurrent) => { if (undoStack.current.length === 0) return; redoStack.current.push(deepClone(current)); setCurrent(undoStack.current.pop()); },
+                redo: (current, setCurrent) => { if (redoStack.current.length === 0) return; undoStack.current.push(deepClone(current)); setCurrent(redoStack.current.pop()); },
                 canUndo: () => undoStack.current.length > 0,
                 canRedo: () => redoStack.current.length > 0,
             }), []);
@@ -772,17 +701,27 @@
 
         // ============ MAIN APP ============
         function App() {
-            const [sitemap, setSitemap] = useState(() => loadState());
+            const [state, setState] = useState(() => loadState());
             const [dark, setDark] = useState(() => localStorage.getItem('sitemap_dark') === 'true');
             const [editingPage, setEditingPage] = useState(null);
             const [searchTerm, setSearchTerm] = useState('');
             const [dragState, setDragState] = useState({ draggingId: null, overId: null, position: null });
             const [toast, setToast] = useState({ message: '', visible: false });
-            const [settingsOpen, setSettingsOpen] = useState(false);
+            const [renamingSitemapId, setRenamingSitemapId] = useState(null);
+            const [renameValue, setRenameValue] = useState('');
             const fileInputRef = useRef(null);
             const history = useHistory();
 
-            useEffect(() => { saveState(sitemap); }, [sitemap]);
+            const activeSitemap = state.sitemaps.find(s => s.id === state.activeSitemapId) || state.sitemaps[0];
+
+            const setActiveSitemap = (updater) => {
+                setState(prev => ({
+                    ...prev,
+                    sitemaps: prev.sitemaps.map(s => s.id === prev.activeSitemapId ? (typeof updater === 'function' ? updater(s) : updater) : s)
+                }));
+            };
+
+            useEffect(() => { saveState(state); }, [state]);
             useEffect(() => {
                 document.documentElement.classList.toggle('dark', dark);
                 document.body.classList.toggle('dark', dark);
@@ -791,45 +730,84 @@
 
             useEffect(() => {
                 const handler = (e) => {
-                    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); history.undo(sitemap, setSitemap); }
-                    if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); history.redo(sitemap, setSitemap); }
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); history.undo(activeSitemap, (val) => setActiveSitemap(val)); }
+                    if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); history.redo(activeSitemap, (val) => setActiveSitemap(val)); }
                 };
                 window.addEventListener('keydown', handler);
                 return () => window.removeEventListener('keydown', handler);
-            }, [sitemap]);
+            }, [activeSitemap]);
 
             const showToast = (msg) => { setToast({ message: msg, visible: true }); setTimeout(() => setToast(t => ({ ...t, visible: false })), 2500); };
 
+            // Sitemap management
+            const addSitemap = () => {
+                const newSitemap = { id: generateId(), name: 'New Role', description: '', pages: [] };
+                setState(prev => ({ activeSitemapId: newSitemap.id, sitemaps: [...prev.sitemaps, newSitemap] }));
+                showToast('Sitemap created');
+            };
+
+            const deleteSitemap = (id) => {
+                if (state.sitemaps.length <= 1) { showToast('Cannot delete the last sitemap'); return; }
+                if (!confirm('Delete this sitemap?')) return;
+                setState(prev => {
+                    const filtered = prev.sitemaps.filter(s => s.id !== id);
+                    return { activeSitemapId: filtered[0].id, sitemaps: filtered };
+                });
+                showToast('Sitemap deleted');
+            };
+
+            const duplicateSitemap = (id) => {
+                const source = state.sitemaps.find(s => s.id === id);
+                if (!source) return;
+                const dup = deepClone(source);
+                dup.id = generateId();
+                dup.name = source.name + ' (copy)';
+                const reassignAllIds = (pages) => pages.map(p => ({ ...p, id: generateId(), children: p.children ? reassignAllIds(p.children) : [] }));
+                dup.pages = reassignAllIds(dup.pages);
+                setState(prev => ({ activeSitemapId: dup.id, sitemaps: [...prev.sitemaps, dup] }));
+                showToast('Sitemap duplicated');
+            };
+
+            const startRenameSitemap = (id) => {
+                const sm = state.sitemaps.find(s => s.id === id);
+                setRenamingSitemapId(id);
+                setRenameValue(sm?.name || '');
+            };
+
+            const finishRenameSitemap = () => {
+                if (renamingSitemapId && renameValue.trim()) {
+                    setState(prev => ({
+                        ...prev,
+                        sitemaps: prev.sitemaps.map(s => s.id === renamingSitemapId ? { ...s, name: renameValue.trim() } : s)
+                    }));
+                }
+                setRenamingSitemapId(null);
+                setRenameValue('');
+            };
+
+            // Page operations
             const addRootPage = () => {
-                history.push(sitemap);
-                const newPage = { id: generateId(), name: 'Nuova Pagina', path: '/', type: 'page', status: 'draft', notes: '', collapsed: false, children: [] };
-                setSitemap(prev => ({ ...prev, pages: [...prev.pages, newPage] }));
+                history.push(activeSitemap);
+                const newPage = { id: generateId(), name: 'New Page', path: '/', type: 'page', status: 'none', notes: '', collapsed: false, children: [] };
+                setActiveSitemap(prev => ({ ...prev, pages: [...prev.pages, newPage] }));
             };
 
             const handleEditSave = (id, updates) => {
-                history.push(sitemap);
-                setSitemap(prev => ({ ...prev, pages: updateNode(prev.pages, id, updates) }));
+                history.push(activeSitemap);
+                setActiveSitemap(prev => ({ ...prev, pages: updateNode(prev.pages, id, updates) }));
             };
 
-            const expandAll = () => {
-                const setCollapsed = (pages, val) => pages.map(p => ({ ...p, collapsed: val, children: p.children ? setCollapsed(p.children, val) : [] }));
-                history.push(sitemap);
-                setSitemap(prev => ({ ...prev, pages: setCollapsed(prev.pages, false) }));
-            };
-
-            const collapseAll = () => {
-                const setCollapsed = (pages, val) => pages.map(p => ({ ...p, collapsed: val, children: p.children ? setCollapsed(p.children, val) : [] }));
-                history.push(sitemap);
-                setSitemap(prev => ({ ...prev, pages: setCollapsed(prev.pages, true) }));
+            const setCollapseAll = (val) => {
+                const apply = (pages) => pages.map(p => ({ ...p, collapsed: val, children: p.children ? apply(p.children) : [] }));
+                history.push(activeSitemap);
+                setActiveSitemap(prev => ({ ...prev, pages: apply(prev.pages) }));
             };
 
             const exportJSON = () => {
-                const blob = new Blob([JSON.stringify(sitemap, null, 2)], { type: 'application/json' });
+                const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url; a.download = `sitemap-${sitemap.name.replace(/\s+/g, '-').toLowerCase()}.json`;
-                a.click(); URL.revokeObjectURL(url);
-                showToast('Sitemap esportata!');
+                const a = document.createElement('a'); a.href = url; a.download = 'sitemaps.json'; a.click(); URL.revokeObjectURL(url);
+                showToast('Exported!');
             };
 
             const importJSON = (e) => {
@@ -839,205 +817,153 @@
                 reader.onload = (ev) => {
                     try {
                         const data = JSON.parse(ev.target.result);
-                        if (data && data.pages) {
-                            history.push(sitemap);
-                            setSitemap(data);
-                            showToast('Sitemap importata!');
+                        if (data && data.sitemaps) { setState(data); showToast('Imported!'); }
+                        else if (data && data.pages) {
+                            // Legacy single sitemap format
+                            setState({ activeSitemapId: data.id, sitemaps: [data] });
+                            showToast('Imported (legacy format)!');
                         }
-                    } catch(err) { showToast('Errore nel file JSON'); }
+                    } catch(err) { showToast('Invalid JSON file'); }
                 };
                 reader.readAsText(file);
                 e.target.value = '';
             };
 
             const shareLink = () => {
-                const encoded = btoa(encodeURIComponent(JSON.stringify(sitemap)));
-                const url = window.location.origin + window.location.pathname + '#' + encoded;
-                navigator.clipboard.writeText(url).then(() => showToast('Link copiato negli appunti!')).catch(() => showToast('Errore nella copia'));
+                try {
+                    const encoded = btoa(encodeURIComponent(JSON.stringify(state)));
+                    const url = window.location.origin + window.location.pathname + '#' + encoded;
+                    navigator.clipboard.writeText(url).then(() => showToast('Link copied!')).catch(() => showToast('Copy failed'));
+                } catch(e) { showToast('Sitemap too large to share via URL — use Export instead'); }
             };
 
-            const resetSitemap = () => {
-                if (confirm('Sei sicuro di voler resettare la sitemap? Questa azione non può essere annullata.')) {
-                    history.push(sitemap);
-                    setSitemap(DEFAULT_SITEMAP);
-                    showToast('Sitemap resettata');
-                }
-            };
-
-            const totalPages = countPages(sitemap.pages);
-            const maxDepth = getDepth(sitemap.pages);
-            const typeStats = {};
-            flattenPages(sitemap.pages).forEach(p => { typeStats[p.type] = (typeStats[p.type] || 0) + 1; });
+            const totalPages = countPages(activeSitemap.pages);
+            const maxDepth = getDepth(activeSitemap.pages);
 
             return (
                 <div className="min-h-screen p-4 md:p-6 lg:p-8 max-w-5xl mx-auto">
                     {/* Header */}
-                    <header className="glass rounded-2xl p-5 mb-6 no-print">
+                    <header className="glass rounded-2xl p-5 mb-4 no-print">
                         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                            <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-purple-600 flex items-center justify-center text-white text-xl shadow-lg">🗺️</div>
-                                    <div>
-                                        <h1 className="text-xl font-bold text-gray-800 dark:text-white">Sitemap Creator</h1>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400">Visual sitemap builder interattivo</p>
-                                    </div>
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-purple-600 flex items-center justify-center text-white text-xl shadow-lg">🗺️</div>
+                                <div>
+                                    <h1 className="text-xl font-bold text-gray-800 dark:text-white">SIS Sitemap Creator</h1>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">Visual sitemap builder — role-based views</p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2 flex-wrap">
-                                <button onClick={() => history.undo(sitemap, setSitemap)} className="p-2 rounded-xl glass-card text-gray-600 dark:text-gray-300 hover:text-brand-600 transition-colors tooltip disabled:opacity-30" data-tip="Annulla (Ctrl+Z)" disabled={!history.canUndo()}><Icons.Undo /></button>
-                                <button onClick={() => history.redo(sitemap, setSitemap)} className="p-2 rounded-xl glass-card text-gray-600 dark:text-gray-300 hover:text-brand-600 transition-colors tooltip disabled:opacity-30" data-tip="Ripristina (Ctrl+Y)" disabled={!history.canRedo()}><Icons.Redo /></button>
+                            <div className="flex items-center gap-2">
+                                <button onClick={() => history.undo(activeSitemap, (val) => setActiveSitemap(val))} className="p-2 rounded-xl glass-card text-gray-600 dark:text-gray-300 hover:text-brand-600 transition-colors tooltip disabled:opacity-30" data-tip="Undo" disabled={!history.canUndo()}><Icons.Undo /></button>
+                                <button onClick={() => history.redo(activeSitemap, (val) => setActiveSitemap(val))} className="p-2 rounded-xl glass-card text-gray-600 dark:text-gray-300 hover:text-brand-600 transition-colors tooltip disabled:opacity-30" data-tip="Redo" disabled={!history.canRedo()}><Icons.Redo /></button>
                                 <div className="w-px h-6 bg-gray-300 dark:bg-gray-600" />
-                                <button onClick={() => setDark(!dark)} className="p-2 rounded-xl glass-card text-gray-600 dark:text-gray-300 hover:text-brand-600 transition-colors tooltip" data-tip={dark ? 'Tema chiaro' : 'Tema scuro'}>
+                                <button onClick={() => setDark(!dark)} className="p-2 rounded-xl glass-card text-gray-600 dark:text-gray-300 hover:text-brand-600 transition-colors tooltip" data-tip={dark ? 'Light mode' : 'Dark mode'}>
                                     {dark ? <Icons.Sun /> : <Icons.Moon />}
-                                </button>
-                                <button onClick={() => setSettingsOpen(true)} className="p-2 rounded-xl glass-card text-gray-600 dark:text-gray-300 hover:text-brand-600 transition-colors tooltip" data-tip="Impostazioni">
-                                    <Icons.Edit />
                                 </button>
                             </div>
                         </div>
                     </header>
 
-                    {/* Project Info */}
-                    <div className="glass rounded-2xl p-5 mb-6">
+                    {/* Sitemap Tabs */}
+                    <div className="glass rounded-2xl p-3 mb-4 no-print">
+                        <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                            {state.sitemaps.map(sm => (
+                                <div key={sm.id} className={`sitemap-tab glass-card rounded-xl px-3 py-2 flex items-center gap-2 cursor-pointer flex-shrink-0 group ${sm.id === state.activeSitemapId ? 'active' : ''}`}>
+                                    {renamingSitemapId === sm.id ? (
+                                        <input
+                                            value={renameValue}
+                                            onChange={e => setRenameValue(e.target.value)}
+                                            onBlur={finishRenameSitemap}
+                                            onKeyDown={e => { if (e.key === 'Enter') finishRenameSitemap(); if (e.key === 'Escape') { setRenamingSitemapId(null); } }}
+                                            autoFocus
+                                            className="bg-transparent border-b border-brand-500 outline-none text-sm font-semibold text-gray-800 dark:text-white w-24"
+                                        />
+                                    ) : (
+                                        <span
+                                            onClick={() => setState(prev => ({ ...prev, activeSitemapId: sm.id }))}
+                                            onDoubleClick={() => startRenameSitemap(sm.id)}
+                                            className="text-sm font-semibold text-gray-700 dark:text-gray-200 select-none"
+                                        >
+                                            {sm.name}
+                                        </span>
+                                    )}
+                                    <span className="text-[10px] text-gray-400 dark:text-gray-500 font-mono">{countPages(sm.pages)}</span>
+                                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button onClick={(e) => { e.stopPropagation(); duplicateSitemap(sm.id); }} className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-blue-500 transition-colors tooltip" data-tip="Duplicate"><Icons.Duplicate /></button>
+                                        {state.sitemaps.length > 1 && (
+                                            <button onClick={(e) => { e.stopPropagation(); deleteSitemap(sm.id); }} className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-red-500 transition-colors tooltip" data-tip="Delete"><Icons.Trash /></button>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                            <button onClick={addSitemap} className="flex items-center gap-1 px-3 py-2 rounded-xl text-sm text-gray-500 dark:text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors flex-shrink-0">
+                                <Icons.Plus /> <span>Add Role</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Active Sitemap Info + Toolbar */}
+                    <div className="glass rounded-2xl p-5 mb-4">
                         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
                             <div>
-                                <h2 className="text-lg font-bold text-gray-800 dark:text-white">{sitemap.name}</h2>
-                                {sitemap.description && <p className="text-sm text-gray-500 dark:text-gray-400">{sitemap.description}</p>}
+                                <h2 className="text-lg font-bold text-gray-800 dark:text-white">{activeSitemap.name}</h2>
+                                {activeSitemap.description && <p className="text-sm text-gray-500 dark:text-gray-400">{activeSitemap.description}</p>}
                             </div>
-                            <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400 flex-wrap">
-                                <span className="glass-card px-2.5 py-1 rounded-lg font-medium">{totalPages} pagine</span>
-                                <span className="glass-card px-2.5 py-1 rounded-lg font-medium">{maxDepth + 1} livelli</span>
-                                {Object.entries(typeStats).map(([type, count]) => (
-                                    <span key={type} className={`px-2.5 py-1 rounded-lg font-medium ${PAGE_TYPES[type]?.color || ''}`}>
-                                        {PAGE_TYPES[type]?.icon} {count}
-                                    </span>
-                                ))}
+                            <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                <span className="glass-card px-2.5 py-1 rounded-lg font-medium">{totalPages} nodes</span>
+                                <span className="glass-card px-2.5 py-1 rounded-lg font-medium">{maxDepth + 1} levels</span>
                             </div>
                         </div>
 
-                        {/* Toolbar */}
                         <div className="flex flex-wrap items-center gap-2 no-print">
                             <div className="relative flex-1 min-w-[200px] max-w-sm">
                                 <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><Icons.Search /></div>
-                                <input
-                                    value={searchTerm}
-                                    onChange={e => setSearchTerm(e.target.value)}
-                                    placeholder="Cerca pagine..."
-                                    className="w-full glass-input rounded-xl pl-9 pr-3 py-2 text-sm text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500 placeholder-gray-400"
-                                />
+                                <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Search pages..." className="w-full glass-input rounded-xl pl-9 pr-3 py-2 text-sm text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500 placeholder-gray-400" />
                             </div>
-                            <button onClick={expandAll} className="p-2 rounded-xl glass-card text-gray-600 dark:text-gray-300 hover:text-brand-600 transition-colors tooltip" data-tip="Espandi tutto"><Icons.ExpandAll /></button>
-                            <button onClick={collapseAll} className="p-2 rounded-xl glass-card text-gray-600 dark:text-gray-300 hover:text-brand-600 transition-colors tooltip" data-tip="Comprimi tutto"><Icons.CollapseAll /></button>
+                            <button onClick={() => setCollapseAll(false)} className="p-2 rounded-xl glass-card text-gray-600 dark:text-gray-300 hover:text-brand-600 transition-colors tooltip" data-tip="Expand all"><Icons.ExpandAll /></button>
+                            <button onClick={() => setCollapseAll(true)} className="p-2 rounded-xl glass-card text-gray-600 dark:text-gray-300 hover:text-brand-600 transition-colors tooltip" data-tip="Collapse all"><Icons.CollapseAll /></button>
                             <div className="w-px h-6 bg-gray-300 dark:bg-gray-600" />
                             <button onClick={addRootPage} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-brand-600 text-white hover:bg-brand-700 transition-colors text-sm font-medium shadow-sm">
-                                <Icons.Plus /> <span className="hidden sm:inline">Aggiungi</span>
+                                <Icons.Plus /> <span className="hidden sm:inline">Add</span>
                             </button>
-                            <button onClick={shareLink} className="p-2 rounded-xl glass-card text-gray-600 dark:text-gray-300 hover:text-brand-600 transition-colors tooltip" data-tip="Copia link"><Icons.Share /></button>
-                            <button onClick={exportJSON} className="p-2 rounded-xl glass-card text-gray-600 dark:text-gray-300 hover:text-brand-600 transition-colors tooltip" data-tip="Esporta JSON"><Icons.Download /></button>
-                            <button onClick={() => fileInputRef.current?.click()} className="p-2 rounded-xl glass-card text-gray-600 dark:text-gray-300 hover:text-brand-600 transition-colors tooltip" data-tip="Importa JSON"><Icons.Upload /></button>
-                            <button onClick={() => window.print()} className="p-2 rounded-xl glass-card text-gray-600 dark:text-gray-300 hover:text-brand-600 transition-colors tooltip" data-tip="Stampa"><Icons.Print /></button>
+                            <button onClick={shareLink} className="p-2 rounded-xl glass-card text-gray-600 dark:text-gray-300 hover:text-brand-600 transition-colors tooltip" data-tip="Copy link"><Icons.Share /></button>
+                            <button onClick={exportJSON} className="p-2 rounded-xl glass-card text-gray-600 dark:text-gray-300 hover:text-brand-600 transition-colors tooltip" data-tip="Export JSON"><Icons.Download /></button>
+                            <button onClick={() => fileInputRef.current?.click()} className="p-2 rounded-xl glass-card text-gray-600 dark:text-gray-300 hover:text-brand-600 transition-colors tooltip" data-tip="Import JSON"><Icons.Upload /></button>
+                            <button onClick={() => window.print()} className="p-2 rounded-xl glass-card text-gray-600 dark:text-gray-300 hover:text-brand-600 transition-colors tooltip" data-tip="Print"><Icons.Print /></button>
                             <input ref={fileInputRef} type="file" accept=".json" onChange={importJSON} className="hidden" />
                         </div>
                     </div>
 
-                    {/* Legend */}
-                    <div className="glass rounded-2xl p-4 mb-6">
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
-                            <span className="font-semibold text-gray-600 dark:text-gray-300">Legenda:</span>
-                            {Object.entries(PAGE_TYPES).map(([key, val]) => (
-                                <span key={key} className="flex items-center gap-1">
-                                    <span>{val.icon}</span>
-                                    <span className={`page-type-badge ${val.color}`}>{val.label}</span>
-                                </span>
-                            ))}
-                            <span className="ml-2 font-semibold text-gray-600 dark:text-gray-300">Stato:</span>
-                            {Object.entries(STATUS_LABELS).map(([key, val]) => (
-                                <span key={key} className="flex items-center gap-1">
-                                    <span className={`w-2 h-2 rounded-full ${STATUS_COLORS[key]}`} />
-                                    <span className="text-gray-600 dark:text-gray-400">{val}</span>
-                                </span>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Sitemap Tree */}
+                    {/* Tree */}
                     <div className="min-h-[300px]">
-                        {sitemap.pages.length === 0 ? (
+                        {activeSitemap.pages.length === 0 ? (
                             <div className="glass rounded-2xl p-12 text-center">
                                 <div className="text-5xl mb-4">🗺️</div>
-                                <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">Nessuna pagina</h3>
-                                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Inizia aggiungendo la prima pagina alla tua sitemap</p>
+                                <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">No pages yet</h3>
+                                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Start building the sitemap for <strong>{activeSitemap.name}</strong></p>
                                 <button onClick={addRootPage} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-600 text-white hover:bg-brand-700 transition-colors text-sm font-medium">
-                                    <Icons.Plus /> Aggiungi prima pagina
+                                    <Icons.Plus /> Add first page
                                 </button>
                             </div>
                         ) : (
-                            sitemap.pages.map(page => (
-                                <PageNode
-                                    key={page.id}
-                                    page={page}
-                                    depth={0}
-                                    sitemap={sitemap}
-                                    setSitemap={setSitemap}
-                                    onEdit={setEditingPage}
-                                    dragState={dragState}
-                                    setDragState={setDragState}
-                                    searchTerm={searchTerm}
-                                    history={history}
-                                />
+                            activeSitemap.pages.map(page => (
+                                <PageNode key={page.id} page={page} depth={0} sitemap={activeSitemap} setSitemap={setActiveSitemap} onEdit={setEditingPage} dragState={dragState} setDragState={setDragState} searchTerm={searchTerm} history={history} />
                             ))
                         )}
                     </div>
 
-                    {/* Drag hint */}
+                    {/* Hint */}
                     <div className="glass rounded-2xl p-4 mt-6 text-center no-print">
                         <p className="text-xs text-gray-500 dark:text-gray-400">
-                            Trascina le pagine per riordinarle e spostarle tra i livelli. Usa i pulsanti freccia per spostare su/giù o cambiare livello gerarchico.
-                            <br />Scorciatoie: <kbd className="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-[10px] font-mono">Ctrl+Z</kbd> Annulla &middot; <kbd className="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-[10px] font-mono">Ctrl+Y</kbd> Ripristina
+                            Drag nodes to reorder. Click the status dot to cycle through: <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full border border-gray-300 inline-block" /> None</span> → <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-400 inline-block" /> In Review</span> → <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-400 inline-block" /> Done</span>
+                            <br /><kbd className="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-[10px] font-mono">Ctrl+Z</kbd> Undo · <kbd className="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-[10px] font-mono">Ctrl+Y</kbd> Redo · Double-click tab name to rename
                         </p>
                     </div>
 
-                    {/* Footer */}
                     <footer className="text-center mt-8 mb-4 text-xs text-gray-400 dark:text-gray-500 no-print">
-                        Sitemap Creator &mdash; Lo stato viene salvato automaticamente nel browser e nell'URL
+                        SIS Sitemap Creator — State auto-saved in browser
                     </footer>
 
-                    {/* Edit Modal */}
-                    <EditPageModal
-                        page={editingPage}
-                        isOpen={!!editingPage}
-                        onClose={() => setEditingPage(null)}
-                        onSave={handleEditSave}
-                    />
-
-                    {/* Settings Modal */}
-                    <Modal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} title="Impostazioni Progetto">
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome Progetto</label>
-                                <input
-                                    value={sitemap.name}
-                                    onChange={e => setSitemap(prev => ({...prev, name: e.target.value}))}
-                                    className="w-full glass-input rounded-xl px-3 py-2 text-sm text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descrizione</label>
-                                <textarea
-                                    value={sitemap.description}
-                                    onChange={e => setSitemap(prev => ({...prev, description: e.target.value}))}
-                                    rows={3}
-                                    className="w-full glass-input rounded-xl px-3 py-2 text-sm text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"
-                                />
-                            </div>
-                            <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
-                                <button onClick={resetSitemap} className="text-sm text-red-500 hover:text-red-600 transition-colors font-medium">
-                                    Resetta alla sitemap predefinita
-                                </button>
-                            </div>
-                        </div>
-                    </Modal>
-
+                    <EditPageModal page={editingPage} isOpen={!!editingPage} onClose={() => setEditingPage(null)} onSave={handleEditSave} />
                     <Toast message={toast.message} visible={toast.visible} />
                 </div>
             );
